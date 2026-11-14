@@ -92,5 +92,36 @@ export class ProfileView {
     identityCard.appendChild(topRow);
     this.container.appendChild(identityCard);
 
+    // 2. Tech Domains Section
+    const stackSection = createEl('section', 'glass-card profile-section');
+    const stackHead = createEl('div', 'section-header');
+    stackHead.appendChild(createEl('span', 'eyebrow-tag', '01 // TECH DOMAINS'));
+
+    const totalItems = this.profile.techDomains.reduce((sum, dom) => sum + dom.items.length, 0);
+    const filterBar = createEl('div', 'domain-filter-bar');
+    filterBar.setAttribute('role', 'tablist');
+    filterBar.setAttribute('aria-label', 'Technology domains');
+
+    const allBtn = createEl('button', 'filter-pill is-active', `All (${totalItems})`);
+    allBtn.type = 'button';
+    allBtn.addEventListener('click', () => this.renderDomainBadges('all'));
+    this.domainButtons.set('all', allBtn);
+    filterBar.appendChild(allBtn);
+
+    for (const dom of this.profile.techDomains) {
+      const btn = createEl('button', 'filter-pill', `${dom.label} (${dom.items.length})`);
+      btn.type = 'button';
+      btn.addEventListener('click', () => this.renderDomainBadges(dom.id));
+      this.domainButtons.set(dom.id, btn);
+      filterBar.appendChild(btn);
+    }
+
+    stackHead.appendChild(filterBar);
+    stackSection.appendChild(stackHead);
+
+    this.badgeGridEl = createEl('div', 'tech-badge-grid');
+    stackSection.appendChild(this.badgeGridEl);
+    this.container.appendChild(stackSection);
+
   }
 }
