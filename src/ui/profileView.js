@@ -123,5 +123,38 @@ export class ProfileView {
     stackSection.appendChild(this.badgeGridEl);
     this.container.appendChild(stackSection);
 
+    // 3. Selected Repositories Section
+    const reposSection = createEl('section', 'glass-card profile-section');
+    const reposHead = createEl('div', 'section-header');
+    const reposTitleWrap = createEl('div', 'section-title-inline');
+    reposTitleWrap.appendChild(createEl('span', 'eyebrow-tag', '02 // SELECTED REPOSITORIES'));
+    this.reposSourceBadgeEl = createEl('span', 'source-badge', 'Snapshot');
+    reposTitleWrap.appendChild(this.reposSourceBadgeEl);
+    reposHead.appendChild(reposTitleWrap);
+    reposHead.appendChild(
+      createSafeLink(this.profile.githubUrl, 'link-action link-action--inline', 'View all on GitHub ↗'),
+    );
+    reposSection.appendChild(reposHead);
+
+    this.reposGridEl = createEl('div', 'repos-grid');
+    reposSection.appendChild(this.reposGridEl);
+    this.container.appendChild(reposSection);
+
+    // 4. Mathematical Engine & Citations Section
+    const notesSection = createEl('section', 'glass-card profile-section');
+    const notesHead = createEl('div', 'section-header');
+    notesHead.appendChild(createEl('span', 'eyebrow-tag', '03 // NUMERICAL METHODS & REFERENCES'));
+    notesSection.appendChild(notesHead);
+
+    const notesGrid = createEl('div', 'notes-grid');
+    this.profile.mathNotes.forEach((note, idx) => {
+      const card = createEl('article', 'note-card');
+      card.appendChild(createEl('h3', 'note-card__title', `[${idx + 1}] ${note.title}`));
+      card.appendChild(createEl('p', 'note-card__body', note.summary));
+      card.appendChild(createSafeLink(note.url, 'note-card__ref', `${note.reference} ↗`));
+      notesGrid.appendChild(card);
+    });
+    notesSection.appendChild(notesGrid);
+    this.container.appendChild(notesSection);
   }
 }
