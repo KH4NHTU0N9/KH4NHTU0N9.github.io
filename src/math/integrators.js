@@ -51,3 +51,32 @@ function halvorsenDerivative(a) {
     -a * z - 4 * x - 4 * y - x * x,
   ];
 }
+
+/**
+ * Catalog of interactive mathematical systems exposed to the UI & Canvas renderer.
+ */
+export const MATH_MODELS = Object.freeze({
+  lorenz: {
+    id: 'lorenz',
+    name: 'Lorenz Attractor',
+    subtitle: 'Deterministic Chaotic Flow (1963)',
+    kind: 'ode',
+    equations: [
+      'dx/dt = σ(y − x)',
+      'dy/dt = x(ρ − z) − y',
+      'dz/dt = xy − βz',
+    ],
+    params: [
+      { key: 'sigma', label: 'σ', min: 4, max: 18, step: 0.2, default: 10 },
+      { key: 'rho', label: 'ρ', min: 14, max: 42, step: 0.5, default: 28 },
+      { key: 'beta', label: 'β', min: 1.0, max: 4.5, step: 0.05, default: 2.67 },
+    ],
+  },
+});
+
+export function getDefaultParams(modelId) {
+  const def = MATH_MODELS[modelId] || MATH_MODELS.lorenz;
+  const out = {};
+  for (const p of def.params) out[p.key] = p.default;
+  return out;
+}
