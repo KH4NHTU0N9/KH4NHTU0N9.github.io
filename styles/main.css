@@ -42,14 +42,17 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   scroll-behavior: smooth;
+  overflow-x: hidden;
   overflow-x: clip;
 }
 
 body {
   margin: 0;
+  min-height: 100vh;
   min-height: 100dvh;
   background-color: var(--bg-void);
   color: var(--text-primary);
+  overflow-x: hidden;
   overflow-x: clip;
 }
 
@@ -60,6 +63,7 @@ body.is-orbiting {
 
 body.is-zen-lock {
   overflow: hidden;
+  height: 100vh;
   height: 100dvh;
 }
 
@@ -84,6 +88,9 @@ button {
 }
 
 .app-shell {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
@@ -101,9 +108,14 @@ button {
 
 #app-shell.is-zen .cockpit-viewport {
   position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
   z-index: 30;
   width: 100vw;
+  height: 100vh;
   height: 100dvh;
   border: 0;
 }
@@ -261,6 +273,7 @@ button {
   grid-template-columns: minmax(420px, 0.94fr) minmax(0, 1.06fr);
   gap: 14px;
   align-items: stretch;
+  min-height: calc(100vh - var(--bar-height));
   min-height: calc(100dvh - var(--bar-height));
 }
 
@@ -593,7 +606,12 @@ button {
 
 #math-canvas {
   position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
   inset: 0;
+  z-index: 0;
   width: 100%;
   height: 100%;
   display: block;
@@ -1063,7 +1081,11 @@ button {
   }
 
   .viewport-stage {
+    min-height: 280px;
+    min-height: clamp(250px, 36vh, 330px);
     min-height: clamp(250px, 36dvh, 330px);
+    height: 290px;
+    height: clamp(250px, 36vh, 330px);
     height: clamp(250px, 36dvh, 330px);
     flex: none;
   }
@@ -1162,4 +1184,42 @@ button {
   .signal-led {
     animation: none;
   }
+}
+
+.boot-warning,
+.boot-warning-panel {
+  margin: 12px 0 0;
+  padding: 12px;
+  border: 1px solid var(--signal-orange);
+  background: rgba(255, 77, 0, 0.08);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-primary);
+}
+
+.boot-warning-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.boot-warning-panel__title {
+  color: var(--signal-orange);
+  letter-spacing: 0.08em;
+}
+
+.boot-warning-panel__msg {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.boot-reload-btn {
+  align-self: flex-start;
+  padding: 7px 12px;
+  background: var(--signal-orange);
+  color: var(--text-invert);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
 }
