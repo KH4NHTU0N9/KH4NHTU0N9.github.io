@@ -42,3 +42,29 @@ export function projectPoint3D(x, y, z, widthPx, heightPx, camera) {
     visible: true,
   };
 }
+
+/**
+ * Generates analytical X/Y/Z axis vectors and XZ polar grid rings
+ * for visual grounding in phase space.
+ */
+export function buildAxisDescriptors(extent = 1.25) {
+  const axes = [
+    { label: 'x', color: 'rgba(56, 189, 248, 0.35)', a: [-extent, 0, 0], b: [extent, 0, 0] },
+    { label: 'y', color: 'rgba(167, 139, 250, 0.35)', a: [0, -extent, 0], b: [0, extent, 0] },
+    { label: 'z', color: 'rgba(52, 211, 153, 0.35)', a: [0, 0, -extent], b: [0, 0, extent] },
+  ];
+
+  const rings = [];
+  const floorY = -1.08;
+  for (const radius of [0.55, 1.05]) {
+    const pts = [];
+    const steps = 48;
+    for (let i = 0; i <= steps; i++) {
+      const a = (i / steps) * Math.PI * 2;
+      pts.push([Math.cos(a) * radius, floorY, Math.sin(a) * radius]);
+    }
+    rings.push(pts);
+  }
+
+  return { axes, rings };
+}
