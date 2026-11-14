@@ -26,10 +26,16 @@ test('all spectral math art presets emit bounded finite coordinates and polyline
     }
 
     const vertexCount = scene.points.length / 3;
+    assert.ok(ART_PRESETS[presetId].equation.length > 0);
+    assert.ok(ART_PRESETS[presetId].topology.length > 0);
     for (const idx of scene.nodeIndices) {
       assert.ok(idx >= 0 && idx < vertexCount, `${presetId} node index out of range`);
     }
   }
+
+  assert.equal(sampleMathArtScene('wave', 0).points.length / 3, 2184);
+  assert.equal(sampleMathArtScene('spiro', 0).points.length / 3, 1980);
+  assert.equal(sampleMathArtScene('tesseract', 0).points.length / 3, 256);
 });
 
 test('sampleMathArtScene defaults cleanly on invalid preset or NaN time', () => {
