@@ -157,4 +157,31 @@ export class ProfileView {
     notesSection.appendChild(notesGrid);
     this.container.appendChild(notesSection);
   }
+
+  /**
+   * Filters and displays verified tech domain badges.
+   * @param {string} domainId
+   */
+  renderDomainBadges(domainId) {
+    this.activeDomainId = domainId;
+    for (const [id, btn] of this.domainButtons.entries()) {
+      const active = id === domainId;
+      btn.classList.toggle('is-active', active);
+      btn.setAttribute('aria-pressed', String(active));
+    }
+
+    this.badgeGridEl.textContent = '';
+    const selectedDomains =
+      domainId === 'all'
+        ? this.profile.techDomains
+        : this.profile.techDomains.filter((d) => d.id === domainId);
+
+    for (const dom of selectedDomains) {
+      for (const item of dom.items) {
+        const chip = createEl('span', `tech-chip tech-chip--${dom.id}`, item);
+        chip.title = dom.label;
+        this.badgeGridEl.appendChild(chip);
+      }
+    }
+  }
 }
