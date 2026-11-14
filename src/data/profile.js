@@ -269,16 +269,13 @@ export async function fetchPublicReposWithFallback(username = PROFILE_DATA.login
   }
 
   const endpoint = `https://api.github.com/users/${encodeURIComponent(username)}/repos?per_page=40&sort=updated`;
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), 3500) : null;
   try {
-    const controller = typeof AbortController === 'function' ? new AbortController() : null;
-    const timer = controller ? setTimeout(() => controller.abort(), 3500) : null;
     const resp = await fetchFn(endpoint, {
       headers: { Accept: 'application/vnd.github+json' },
       signal: controller ? controller.signal : undefined,
     });
-    if (timer) {
-      clearTimeout(timer);
-    }
     if (!resp.ok) {
       return { repos: fallback, source: 'fallback' };
     }
@@ -314,5 +311,9 @@ export async function fetchPublicReposWithFallback(username = PROFILE_DATA.login
     return { repos: curated, source: 'live' };
   } catch {
     return { repos: fallback, source: 'fallback' };
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
   }
 }
