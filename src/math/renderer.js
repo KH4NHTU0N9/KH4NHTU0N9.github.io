@@ -172,4 +172,90 @@ export class MathCanvasRenderer {
       maxRadius: Math.min(this.widthCss, this.heightCss) * 0.36,
     });
   }
+
+  /**
+   * Resizes backing store cleanly for Retina displays capped at 2x DPR.
+   */
+  resize() {
+    const rect = this.canvas.getBoundingClientRect();
+    const w = Math.max(240, Math.floor(rect.width || this.canvas.clientWidth || 640));
+    const h = Math.max(240, Math.floor(rect.height || this.canvas.clientHeight || 480));
+    const rawDpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
+    const dpr = clamp(rawDpr, 1, 2);
+
+    if (w === this.widthCss && h === this.heightCss && dpr === this.dpr) {
+      return;
+    }
+    this.widthCss = w;
+    this.heightCss = h;
+    this.dpr = dpr;
+    this.canvas.width = Math.round(w * dpr);
+    this.canvas.height = Math.round(h * dpr);
+  }
+
+  /**
+   * Ensures typed projection scratch buffers match active vertex count.
+   * @param {number} count
+   */
+  ensureCapacity(count) {
+    if (count <= this.capacity) {
+      return;
+    }
+    this.capacity = count;
+    this.projX = new Float32Array(count);
+    this.projY = new Float32Array(count);
+    this.projDepth = new Float32Array(count);
+    this.projVis = new Uint8Array(count);
+  }
+
+  /**
+   * Samples the active mathematical model and draws a single frame.
+   * @param {{ modelId: string, params: Record<string, number>, camera: object, timeSec: number }} frameState
+   * @returns {{ stateSample: number[], derivativeSample: number[], speedMag: number, vertexCount: number }}
+   */
+  render({ modelId, params, camera, timeSec }) {
+    const ctx = this.ctx;
+    if (!ctx) {
+      return this.lastTelemetry;
+    }
+
+    const theme = COLOR_THEMES[this.themeId] || COLOR_THEMES.quantum;
+    const luts = THEME_LUTS.get(theme.id);
+    const w = this.widthCss;
+    const h = this.heightCss;
+
+    ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    this.drawBackdrop(ctx, w, h, theme);
+
+    if (this.showAxes) {
+      this.drawCoordinateFrame(ctx, w, h, camera, theme);
+    }
+
+    const scene = sampleMathScene(modelId, params, timeSec);
+    const vertexCount = scene.points.length / 3;
+    this.ensureCapacity(vertexCount);
+    this.projectVertices(scene.points, vertexCount, w, h, camera, timeSec);
+
+    this.drawPolylines(ctx, scene, luts.halo, 3.3);
+    this.drawPolylines(ctx, scene, luts.core, 1.38);
+    this.drawTracerHeads(ctx, scene.headIndices, theme);
+    this.drawWavePulses(ctx, timeSec, theme);
+
+    const [dx, dy, dz] = scene.derivativeSample;
+    this.lastTelemetry = {
+      stateSample: scene.stateSample,
+      derivativeSample: scene.derivativeSample,
+      speedMag: Math.hypot(dx, dy, dz),
+      vertexCount,
+    };
+    return this.lastTelemetry;
+  }
+
+  drawBackdrop(ctx, w, h, theme) {
+    const grad = ctx.createRadialGradient(w * 0.5, h * 0.48, 24, w * 0.5, h * 0.5, Math.max(w, h) * 0.72);
+    grad.addColorStop(0, theme.bgCenter);
+    grad.addColorStop(1, theme.bgEdge);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+  }
 }
