@@ -1,65 +1,69 @@
-import { clamp, sampleMathScene } from './integrators.js';
-import { buildAxisDescriptors, projectPoint3D } from './projection3d.js';
+import { clamp, sampleMathArtScene } from './mathArt.js';
+import { projectPoint3D } from './projection3d.js';
 
 /**
- * Available oscilloscope color palettes tailored to dark observatory backgrounds.
+ * Radiant multi-stop spectral themes designed for luminous dark-mode portfolios.
  */
 export const COLOR_THEMES = Object.freeze({
-  quantum: Object.freeze({
-    id: 'quantum',
-    label: 'Quantum Cyan',
-    bgCenter: '#0d1526',
-    bgEdge: '#06080f',
-    gridStroke: 'rgba(56, 189, 248, 0.14)',
-    axisLabel: 'rgba(148, 163, 184, 0.78)',
+  aurora: Object.freeze({
+    id: 'aurora',
+    label: 'Aurora Prism',
+    bgCenter: '#0f1730',
+    bgEdge: '#04060f',
+    glowPrimary: 'rgba(56, 189, 248, 0.16)',
+    glowSecondary: 'rgba(244, 114, 182, 0.14)',
     stops: [
-      [56, 189, 248],
-      [52, 211, 153],
-      [129, 140, 248],
-    ],
-    headCore: '#f0f9ff',
-    headHalo: 'rgba(56, 189, 248, 0.45)',
-    pulseRing: 'rgba(52, 211, 153, ',
-  }),
-  plasma: Object.freeze({
-    id: 'plasma',
-    label: 'Solar Plasma',
-    bgCenter: '#180f22',
-    bgEdge: '#09060e',
-    gridStroke: 'rgba(251, 146, 60, 0.15)',
-    axisLabel: 'rgba(226, 200, 248, 0.78)',
-    stops: [
+      [34, 211, 238],
       [168, 85, 247],
-      [251, 113, 133],
+      [244, 114, 182],
+      [52, 211, 153],
+    ],
+    headCore: '#ffffff',
+    headHalo: 'rgba(244, 114, 182, 0.42)',
+    pulseRing: 'rgba(56, 239, 212, ',
+  }),
+  cyber: Object.freeze({
+    id: 'cyber',
+    label: 'Cyber Neon',
+    bgCenter: '#091529',
+    bgEdge: '#03050c',
+    glowPrimary: 'rgba(0, 245, 212, 0.16)',
+    glowSecondary: 'rgba(255, 46, 147, 0.14)',
+    stops: [
+      [0, 245, 212],
+      [59, 130, 246],
+      [255, 46, 147],
+      [250, 204, 21],
+    ],
+    headCore: '#f8fafc',
+    headHalo: 'rgba(0, 245, 212, 0.44)',
+    pulseRing: 'rgba(255, 46, 147, ',
+  }),
+  solar: Object.freeze({
+    id: 'solar',
+    label: 'Solar Flare',
+    bgCenter: '#1f1024',
+    bgEdge: '#07040d',
+    glowPrimary: 'rgba(251, 191, 36, 0.16)',
+    glowSecondary: 'rgba(192, 132, 252, 0.14)',
+    stops: [
       [251, 191, 36],
+      [251, 113, 133],
+      [192, 132, 252],
+      [56, 189, 248],
     ],
     headCore: '#fffbeb',
-    headHalo: 'rgba(251, 191, 36, 0.48)',
-    pulseRing: 'rgba(251, 113, 133, ',
-  }),
-  phosphor: Object.freeze({
-    id: 'phosphor',
-    label: 'CRT Phosphor',
-    bgCenter: '#081910',
-    bgEdge: '#040a06',
-    gridStroke: 'rgba(34, 197, 94, 0.16)',
-    axisLabel: 'rgba(134, 239, 172, 0.78)',
-    stops: [
-      [22, 163, 74],
-      [52, 211, 153],
-      [190, 242, 100],
-    ],
-    headCore: '#f0fdf4',
-    headHalo: 'rgba(74, 222, 128, 0.48)',
-    pulseRing: 'rgba(134, 239, 172, ',
+    headHalo: 'rgba(251, 191, 36, 0.46)',
+    pulseRing: 'rgba(251, 191, 36, ',
   }),
 });
 
 const LUT_SIZE = 32;
-const POINTER_DEFLECT_RADIUS_PX = 108;
-const POINTER_DEFLECT_STRENGTH_PX = 16;
-const PULSE_LIFETIME_SEC = 1.15;
+const POINTER_DEFLECT_RADIUS_PX = 128;
+const POINTER_DEFLECT_STRENGTH_PX = 18;
+const PULSE_LIFETIME_SEC = 1.25;
 const MAX_ACTIVE_PULSES = 6;
+const AMBIENT_SPARK_COUNT = 54;
 
 function buildColorLut(stops, alpha) {
   const lut = new Array(LUT_SIZE);
@@ -83,14 +87,33 @@ const THEME_LUTS = new Map(
   Object.values(COLOR_THEMES).map((theme) => [
     theme.id,
     {
-      core: buildColorLut(theme.stops, 0.92),
-      halo: buildColorLut(theme.stops, 0.2),
+      core: buildColorLut(theme.stops, 0.94),
+      halo: buildColorLut(theme.stops, 0.22),
+      chord: buildColorLut(theme.stops, 0.34),
+      node: buildColorLut(theme.stops, 0.92),
     },
   ]),
 );
 
+function buildAmbientSparks() {
+  const sparks = new Array(AMBIENT_SPARK_COUNT);
+  for (let i = 0; i < AMBIENT_SPARK_COUNT; i++) {
+    // Deterministic pseudo-random stars (Halton-like spread)
+    const u = ((i * 73 + 19) % 997) / 997;
+    const v = ((i * 151 + 43) % 991) / 991;
+    sparks[i] = {
+      nx: u,
+      ny: v,
+      phase: i * 0.67,
+      radius: 0.9 + (i % 3) * 0.55,
+      bucket: i % LUT_SIZE,
+    };
+  }
+  return sparks;
+}
+
 /**
- * High-precision Canvas 2D renderer for 3D dynamical attractors and parametric surfaces.
+ * Retina Canvas 2D renderer for creative, vibrant generative mathematics visuals.
  */
 export class MathCanvasRenderer {
   /**
@@ -99,34 +122,33 @@ export class MathCanvasRenderer {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { alpha: false });
-    this.widthCss = 640;
-    this.heightCss = 480;
+    this.widthCss = 960;
+    this.heightCss = 540;
     this.dpr = 1;
 
-    this.themeId = 'quantum';
-    this.showAxes = true;
+    this.themeId = 'aurora';
+    this.zen = false;
     this.pointer = { x: 0, y: 0, active: false };
     this.pulses = [];
-    this.axesDesc = buildAxisDescriptors(1.22);
+    this.sparks = buildAmbientSparks();
 
-    this.capacity = 0;
-    this.projX = new Float32Array(0);
-    this.projY = new Float32Array(0);
-    this.projDepth = new Float32Array(0);
-    this.projVis = new Uint8Array(0);
+    this.nodeCap = 0;
+    this.nodeX = new Float32Array(0);
+    this.nodeY = new Float32Array(0);
+    this.nodeDepth = new Float32Array(0);
+    this.nodeVis = new Uint8Array(0);
 
-    this.lastTelemetry = {
-      stateSample: [0, 0, 0],
-      derivativeSample: [0, 0, 0],
-      speedMag: 0,
-      vertexCount: 0,
-    };
+    this.ribCap = 0;
+    this.ribX = new Float32Array(0);
+    this.ribY = new Float32Array(0);
+    this.ribDepth = new Float32Array(0);
+    this.ribVis = new Uint8Array(0);
 
     this.resize();
   }
 
   /**
-   * Selects active oscilloscope color theme.
+   * Selects active spectral color aura palette.
    * @param {string} themeId
    */
   setTheme(themeId) {
@@ -136,15 +158,15 @@ export class MathCanvasRenderer {
   }
 
   /**
-   * Toggles 3D coordinate axes and polar reference rings.
-   * @param {boolean} visible
+   * Adjusts hero right-bias vs centered Zen composition.
+   * @param {boolean} zen
    */
-  setShowAxes(visible) {
-    this.showAxes = Boolean(visible);
+  setZenMode(zen) {
+    this.zen = Boolean(zen);
   }
 
   /**
-   * Updates cursor coordinates for localized magnetic deflection.
+   * Updates cursor position for localized harmonic field perturbation.
    * @param {number} xPx
    * @param {number} yPx
    * @param {boolean} active
@@ -156,7 +178,7 @@ export class MathCanvasRenderer {
   }
 
   /**
-   * Emits an expanding harmonic wave ring from a canvas click.
+   * Emits an expanding harmonic wave ring from pointer interaction.
    * @param {number} xPx
    * @param {number} yPx
    * @param {number} timeSec
@@ -169,17 +191,17 @@ export class MathCanvasRenderer {
       x: xPx,
       y: yPx,
       birthSec: timeSec,
-      maxRadius: Math.min(this.widthCss, this.heightCss) * 0.36,
+      maxRadius: Math.min(this.widthCss, this.heightCss) * 0.42,
     });
   }
 
   /**
-   * Resizes backing store cleanly for Retina displays capped at 2x DPR.
+   * Resizes Canvas backing store crisply up to 2x Retina DPR.
    */
   resize() {
     const rect = this.canvas.getBoundingClientRect();
-    const w = Math.max(240, Math.floor(rect.width || this.canvas.clientWidth || 640));
-    const h = Math.max(240, Math.floor(rect.height || this.canvas.clientHeight || 480));
+    const w = Math.max(240, Math.floor(rect.width || this.canvas.clientWidth || 960));
+    const h = Math.max(240, Math.floor(rect.height || this.canvas.clientHeight || 540));
     const rawDpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
     const dpr = clamp(rawDpr, 1, 2);
 
@@ -193,134 +215,177 @@ export class MathCanvasRenderer {
     this.canvas.height = Math.round(h * dpr);
   }
 
-  /**
-   * Ensures typed projection scratch buffers match active vertex count.
-   * @param {number} count
-   */
-  ensureCapacity(count) {
-    if (count <= this.capacity) {
+  ensureNodeCap(count) {
+    if (count <= this.nodeCap) {
       return;
     }
-    this.capacity = count;
-    this.projX = new Float32Array(count);
-    this.projY = new Float32Array(count);
-    this.projDepth = new Float32Array(count);
-    this.projVis = new Uint8Array(count);
+    this.nodeCap = count;
+    this.nodeX = new Float32Array(count);
+    this.nodeY = new Float32Array(count);
+    this.nodeDepth = new Float32Array(count);
+    this.nodeVis = new Uint8Array(count);
+  }
+
+  ensureRibCap(count) {
+    if (count <= this.ribCap) {
+      return;
+    }
+    this.ribCap = count;
+    this.ribX = new Float32Array(count);
+    this.ribY = new Float32Array(count);
+    this.ribDepth = new Float32Array(count);
+    this.ribVis = new Uint8Array(count);
   }
 
   /**
-   * Samples the active mathematical model and draws a single frame.
-   * @param {{ modelId: string, params: Record<string, number>, camera: object, timeSec: number }} frameState
-   * @returns {{ stateSample: number[], derivativeSample: number[], speedMag: number, vertexCount: number }}
+   * Samples the generative math art scene and renders one crisp frame.
+   * @param {{ presetId: string, camera: object, timeSec: number }} frameState
    */
-  render({ modelId, params, camera, timeSec }) {
+  render({ presetId, camera, timeSec }) {
     const ctx = this.ctx;
     if (!ctx) {
-      return this.lastTelemetry;
+      return;
     }
 
-    const theme = COLOR_THEMES[this.themeId] || COLOR_THEMES.quantum;
+    const theme = COLOR_THEMES[this.themeId] || COLOR_THEMES.aurora;
     const luts = THEME_LUTS.get(theme.id);
     const w = this.widthCss;
     const h = this.heightCss;
 
+    // Position 3D sculpture on right showcase zone on wide desktop hero, centered on mobile/Zen
+    const wideDesktop = w >= 880 && !this.zen;
+    const centerXRatio = wideDesktop ? 0.73 : 0.5;
+    const centerYRatio = wideDesktop ? 0.49 : this.zen ? 0.5 : 0.47;
+
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    this.drawBackdrop(ctx, w, h, theme);
+    this.drawBackdrop(ctx, w, h, centerXRatio, centerYRatio, theme);
+    this.drawAmbientSparks(ctx, w, h, timeSec, luts.node);
 
-    if (this.showAxes) {
-      this.drawCoordinateFrame(ctx, w, h, camera, theme);
-    }
+    const activePulses = this.pulses.filter((p) => timeSec - p.birthSec < PULSE_LIFETIME_SEC);
+    this.pulses = activePulses;
 
-    const scene = sampleMathScene(modelId, params, timeSec);
-    const vertexCount = scene.points.length / 3;
-    this.ensureCapacity(vertexCount);
-    this.projectVertices(scene.points, vertexCount, w, h, camera, timeSec);
+    const scene = sampleMathArtScene(presetId, timeSec);
+    const nodeCount = scene.nodeCoords.length / 3;
+    const ribVertCount = scene.ribbonPoints.length / 3;
 
-    this.drawPolylines(ctx, scene, luts.halo, 3.3);
-    this.drawPolylines(ctx, scene, luts.core, 1.38);
-    this.drawTracerHeads(ctx, scene.headIndices, theme);
+    this.ensureNodeCap(nodeCount);
+    this.ensureRibCap(ribVertCount);
+
+    this.projectArray(
+      scene.nodeCoords,
+      nodeCount,
+      w,
+      h,
+      camera,
+      centerXRatio,
+      centerYRatio,
+      activePulses,
+      timeSec,
+      this.nodeX,
+      this.nodeY,
+      this.nodeDepth,
+      this.nodeVis,
+    );
+
+    this.projectArray(
+      scene.ribbonPoints,
+      ribVertCount,
+      w,
+      h,
+      camera,
+      centerXRatio,
+      centerYRatio,
+      activePulses,
+      timeSec,
+      this.ribX,
+      this.ribY,
+      this.ribDepth,
+      this.ribVis,
+    );
+
+    this.drawChords(ctx, scene.chords, luts.chord);
+    this.drawRibbons(ctx, scene, luts.halo, 3.6);
+    this.drawRibbons(ctx, scene, luts.core, 1.45);
+    this.drawNodes(ctx, scene, nodeCount, luts.node);
+    this.drawTracers(ctx, scene.tracerIndices, theme);
     this.drawWavePulses(ctx, timeSec, theme);
-
-    const [dx, dy, dz] = scene.derivativeSample;
-    this.lastTelemetry = {
-      stateSample: scene.stateSample,
-      derivativeSample: scene.derivativeSample,
-      speedMag: Math.hypot(dx, dy, dz),
-      vertexCount,
-    };
-    return this.lastTelemetry;
   }
 
-  drawBackdrop(ctx, w, h, theme) {
-    const grad = ctx.createRadialGradient(w * 0.5, h * 0.48, 24, w * 0.5, h * 0.5, Math.max(w, h) * 0.72);
-    grad.addColorStop(0, theme.bgCenter);
-    grad.addColorStop(1, theme.bgEdge);
-    ctx.fillStyle = grad;
+  drawBackdrop(ctx, w, h, cxRatio, cyRatio, theme) {
+    const cx = w * cxRatio;
+    const cy = h * cyRatio;
+
+    const baseGrad = ctx.createRadialGradient(cx, cy, 24, w * 0.5, h * 0.5, Math.max(w, h) * 0.85);
+    baseGrad.addColorStop(0, theme.bgCenter);
+    baseGrad.addColorStop(1, theme.bgEdge);
+    ctx.fillStyle = baseGrad;
+    ctx.fillRect(0, 0, w, h);
+
+    // Dual spectral nebula wash for radiant depth without washed-out glare
+    const glowRadius = Math.min(w, h) * 0.62;
+    const aura1 = ctx.createRadialGradient(cx - 40, cy - 30, 10, cx - 40, cy - 30, glowRadius);
+    aura1.addColorStop(0, theme.glowPrimary);
+    aura1.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = aura1;
+    ctx.fillRect(0, 0, w, h);
+
+    const aura2 = ctx.createRadialGradient(cx + 70, cy + 45, 10, cx + 70, cy + 45, glowRadius * 0.9);
+    aura2.addColorStop(0, theme.glowSecondary);
+    aura2.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = aura2;
     ctx.fillRect(0, 0, w, h);
   }
 
-  drawCoordinateFrame(ctx, w, h, camera, theme) {
+  drawAmbientSparks(ctx, w, h, timeSec, paletteLut) {
     ctx.save();
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = theme.gridStroke;
-
-    for (const ring of this.axesDesc.rings) {
+    for (const s of this.sparks) {
+      const twinkle = 0.25 + 0.65 * (0.5 + 0.5 * Math.sin(timeSec * 1.4 + s.phase));
+      ctx.globalAlpha = twinkle * 0.55;
+      ctx.fillStyle = paletteLut[s.bucket];
       ctx.beginPath();
-      let started = false;
-      for (const [rx, ry, rz] of ring) {
-        const p = projectPoint3D(rx, ry, rz, w, h, camera);
-        if (!p.visible) {
-          started = false;
-          continue;
-        }
-        if (!started) {
-          ctx.moveTo(p.sx, p.sy);
-          started = true;
-        } else {
-          ctx.lineTo(p.sx, p.sy);
-        }
-      }
-      ctx.stroke();
-    }
-
-    ctx.font = '600 11px ui-monospace, SFMono-Regular, Menlo, monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
-    for (const axis of this.axesDesc.axes) {
-      const pa = projectPoint3D(axis.a[0], axis.a[1], axis.a[2], w, h, camera);
-      const pb = projectPoint3D(axis.b[0], axis.b[1], axis.b[2], w, h, camera);
-      if (!pa.visible || !pb.visible) {
-        continue;
-      }
-      ctx.strokeStyle = axis.color;
-      ctx.beginPath();
-      ctx.moveTo(pa.sx, pa.sy);
-      ctx.lineTo(pb.sx, pb.sy);
-      ctx.stroke();
-
-      ctx.fillStyle = theme.axisLabel;
-      ctx.fillText(axis.label, pb.sx + 9, pb.sy - 6);
+      ctx.arc(s.nx * w, s.ny * h, s.radius, 0, TAU_CONST);
+      ctx.fill();
     }
     ctx.restore();
   }
 
-  projectVertices(points, vertexCount, w, h, camera, timeSec) {
+  projectArray(
+    coords,
+    count,
+    w,
+    h,
+    camera,
+    cxRatio,
+    cyRatio,
+    activePulses,
+    timeSec,
+    outX,
+    outY,
+    outDepth,
+    outVis,
+  ) {
     const pActive = this.pointer.active;
     const px = this.pointer.x;
     const py = this.pointer.y;
     const deflectSq = POINTER_DEFLECT_RADIUS_PX * POINTER_DEFLECT_RADIUS_PX;
 
-    const activePulses = this.pulses.filter((pulse) => timeSec - pulse.birthSec < PULSE_LIFETIME_SEC);
-    this.pulses = activePulses;
-
-    for (let i = 0; i < vertexCount; i++) {
-      const base = i * 3;
-      const p = projectPoint3D(points[base], points[base + 1], points[base + 2], w, h, camera);
+    for (let i = 0; i < count; i++) {
+      const i3 = i * 3;
+      const p = projectPoint3D(
+        coords[i3],
+        coords[i3 + 1],
+        coords[i3 + 2],
+        w,
+        h,
+        camera,
+        cxRatio,
+        cyRatio,
+      );
       if (!p.visible) {
-        this.projVis[i] = 0;
+        outVis[i] = 0;
         continue;
       }
+
       let sx = p.sx;
       let sy = p.sy;
 
@@ -344,36 +409,59 @@ export class MathCanvasRenderer {
         const dy = sy - pulse.y;
         const dist = Math.hypot(dx, dy);
         const band = Math.abs(dist - waveRadius);
-        if (dist > 1 && band < 28) {
-          const amp = (1 - band / 28) * (1 - ageNorm) * 7.5;
+        if (dist > 1 && band < 32) {
+          const amp = (1 - band / 32) * (1 - ageNorm) * 8.5;
           sx += (dx / dist) * amp;
           sy += (dy / dist) * amp;
         }
       }
 
-      this.projX[i] = sx;
-      this.projY[i] = sy;
-      this.projDepth[i] = p.depthNorm;
-      this.projVis[i] = 1;
+      outX[i] = sx;
+      outY[i] = sy;
+      outDepth[i] = p.depthNorm;
+      outVis[i] = 1;
     }
   }
 
-  drawPolylines(ctx, scene, paletteLut, lineWidth) {
+  drawChords(ctx, chords, chordLut) {
+    if (!chords || chords.length === 0) {
+      return;
+    }
+    ctx.save();
+    ctx.lineWidth = 1.05;
+    const lastIdx = LUT_SIZE - 1;
+
+    for (const chord of chords) {
+      if (!this.nodeVis[chord.a] || !this.nodeVis[chord.b]) {
+        continue;
+      }
+      const depthAlpha = clamp(chord.strength * 0.55 + this.nodeDepth[chord.a] * 0.45, 0.15, 0.95);
+      const bucket = Math.min(lastIdx, Math.floor(clamp(chord.hue, 0, 1) * LUT_SIZE));
+      ctx.globalAlpha = depthAlpha;
+      ctx.strokeStyle = chordLut[bucket];
+      ctx.beginPath();
+      ctx.moveTo(this.nodeX[chord.a], this.nodeY[chord.a]);
+      ctx.lineTo(this.nodeX[chord.b], this.nodeY[chord.b]);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  drawRibbons(ctx, scene, paletteLut, lineWidth) {
     ctx.save();
     ctx.lineWidth = lineWidth;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-
     const lastIdx = LUT_SIZE - 1;
-    const { speeds, polylines } = scene;
+    const { ribbonHues, ribbons } = scene;
 
-    for (const poly of polylines) {
+    for (const poly of ribbons) {
       const end = poly.start + poly.count;
       let activeBucket = -1;
       let pathOpen = false;
 
       for (let i = poly.start; i < end - 1; i++) {
-        if (!this.projVis[i] || !this.projVis[i + 1]) {
+        if (!this.ribVis[i] || !this.ribVis[i + 1]) {
           if (pathOpen) {
             ctx.stroke();
             pathOpen = false;
@@ -381,9 +469,8 @@ export class MathCanvasRenderer {
           }
           continue;
         }
-
-        const colorMix = clamp(speeds[i] * 0.72 + this.projDepth[i] * 0.28, 0, 1);
-        const bucket = Math.min(lastIdx, Math.floor(colorMix * LUT_SIZE));
+        const mix = clamp(ribbonHues[i] * 0.72 + this.ribDepth[i] * 0.28, 0, 1);
+        const bucket = Math.min(lastIdx, Math.floor(mix * LUT_SIZE));
 
         if (!pathOpen || bucket !== activeBucket) {
           if (pathOpen) {
@@ -391,25 +478,25 @@ export class MathCanvasRenderer {
           }
           ctx.strokeStyle = paletteLut[bucket];
           ctx.beginPath();
-          ctx.moveTo(this.projX[i], this.projY[i]);
+          ctx.moveTo(this.ribX[i], this.ribY[i]);
           activeBucket = bucket;
           pathOpen = true;
         }
-        ctx.lineTo(this.projX[i + 1], this.projY[i + 1]);
+        ctx.lineTo(this.ribX[i + 1], this.ribY[i + 1]);
       }
 
       if (poly.closed && poly.count > 2) {
         const first = poly.start;
         const last = end - 1;
-        if (this.projVis[last] && this.projVis[first]) {
+        if (this.ribVis[last] && this.ribVis[first]) {
           if (!pathOpen) {
-            const bucket = Math.min(lastIdx, Math.floor(clamp(speeds[last], 0, 1) * LUT_SIZE));
+            const bucket = Math.min(lastIdx, Math.floor(clamp(ribbonHues[last], 0, 1) * LUT_SIZE));
             ctx.strokeStyle = paletteLut[bucket];
             ctx.beginPath();
-            ctx.moveTo(this.projX[last], this.projY[last]);
+            ctx.moveTo(this.ribX[last], this.ribY[last]);
             pathOpen = true;
           }
-          ctx.lineTo(this.projX[first], this.projY[first]);
+          ctx.lineTo(this.ribX[first], this.ribY[first]);
         }
       }
 
@@ -417,30 +504,48 @@ export class MathCanvasRenderer {
         ctx.stroke();
       }
     }
-
     ctx.restore();
   }
 
-  drawTracerHeads(ctx, headIndices, theme) {
-    if (!headIndices || headIndices.length === 0) {
+  drawNodes(ctx, scene, nodeCount, nodeLut) {
+    ctx.save();
+    const lastIdx = LUT_SIZE - 1;
+    for (let i = 0; i < nodeCount; i++) {
+      if (!this.nodeVis[i]) {
+        continue;
+      }
+      const depth = this.nodeDepth[i];
+      const r = scene.nodeSizes[i] * (0.62 + depth * 0.55);
+      const bucket = Math.min(lastIdx, Math.floor(clamp(scene.nodeHues[i], 0, 1) * LUT_SIZE));
+      ctx.globalAlpha = 0.4 + depth * 0.58;
+      ctx.fillStyle = nodeLut[bucket];
+      ctx.beginPath();
+      ctx.arc(this.nodeX[i], this.nodeY[i], r, 0, TAU_CONST);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  drawTracers(ctx, tracerIndices, theme) {
+    if (!tracerIndices || tracerIndices.length === 0) {
       return;
     }
     ctx.save();
-    for (const idx of headIndices) {
-      if (idx < 0 || idx >= this.projVis.length || !this.projVis[idx]) {
+    for (const idx of tracerIndices) {
+      if (idx < 0 || idx >= this.ribVis.length || !this.ribVis[idx]) {
         continue;
       }
-      const x = this.projX[idx];
-      const y = this.projY[idx];
+      const x = this.ribX[idx];
+      const y = this.ribY[idx];
 
       ctx.fillStyle = theme.headHalo;
       ctx.beginPath();
-      ctx.arc(x, y, 7.2, 0, Math.PI * 2);
+      ctx.arc(x, y, 8.2, 0, TAU_CONST);
       ctx.fill();
 
       ctx.fillStyle = theme.headCore;
       ctx.beginPath();
-      ctx.arc(x, y, 2.7, 0, Math.PI * 2);
+      ctx.arc(x, y, 2.8, 0, TAU_CONST);
       ctx.fill();
     }
     ctx.restore();
@@ -451,16 +556,18 @@ export class MathCanvasRenderer {
       return;
     }
     ctx.save();
-    ctx.lineWidth = 1.4;
+    ctx.lineWidth = 1.5;
     for (const pulse of this.pulses) {
       const ageNorm = clamp((timeSec - pulse.birthSec) / PULSE_LIFETIME_SEC, 0, 1);
       const radius = Math.max(4, ageNorm * pulse.maxRadius);
-      const alpha = (1 - ageNorm) * 0.58;
+      const alpha = (1 - ageNorm) * 0.62;
       ctx.strokeStyle = `${theme.pulseRing}${alpha.toFixed(3)})`;
       ctx.beginPath();
-      ctx.arc(pulse.x, pulse.y, radius, 0, Math.PI * 2);
+      ctx.arc(pulse.x, pulse.y, radius, 0, TAU_CONST);
       ctx.stroke();
     }
     ctx.restore();
   }
 }
+
+const TAU_CONST = Math.PI * 2;
