@@ -58,16 +58,31 @@ export const ART_PRESETS = Object.freeze({
 });
 
 /**
+ * Computes normalized optical prism RGB channels [0..1] from wavelength t in [0, 1].
+ *
+ * @param {number} t
+ * @returns {[number, number, number]}
+ */
+export function spectralRgbUnit(t) {
+  const w = ((t % 1) + 1) % 1;
+  return [
+    clamp(Math.sin(w * TAU + 0.0) * 0.5 + 0.52, 0.08, 1),
+    clamp(Math.sin(w * TAU + 2.094) * 0.5 + 0.52, 0.08, 1),
+    clamp(Math.sin(w * TAU + 4.188) * 0.5 + 0.52, 0.08, 1),
+  ];
+}
+
+/**
  * Computes pure optical prism RGB color from normalized wavelength t in [0, 1].
  *
  * @param {number} t
  * @param {number} [alpha]
  */
 export function spectralRgba(t, alpha = 1) {
-  const w = ((t % 1) + 1) % 1;
-  const r = Math.round(clamp(Math.sin(w * TAU + 0.0) * 0.5 + 0.52, 0.08, 1) * 255);
-  const g = Math.round(clamp(Math.sin(w * TAU + 2.094) * 0.5 + 0.52, 0.08, 1) * 255);
-  const b = Math.round(clamp(Math.sin(w * TAU + 4.188) * 0.5 + 0.52, 0.08, 1) * 255);
+  const [rLin, gLin, bLin] = spectralRgbUnit(t);
+  const r = Math.round(rLin * 255);
+  const g = Math.round(gLin * 255);
+  const b = Math.round(bLin * 255);
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
