@@ -24,41 +24,61 @@ function createSafeLink(href, className, text, { allowMailto = false } = {}) {
   return a;
 }
 
+const SLIDER_SPECS = [
+  { key: 'freq', code: 'HARMONIC / K', min: 0.4, max: 2.4, step: 0.05, def: 1.0, unit: '×' },
+  { key: 'amp', code: 'AMPLITUDE / A', min: 0.35, max: 1.65, step: 0.05, def: 1.0, unit: '×' },
+  { key: 'speed', code: 'PHASE_RATE', min: 0, max: 2.5, step: 0.05, def: 1.0, unit: '×' },
+  { key: 'zoom', code: 'CAM_OPTIC_ZM', min: 0.65, max: 1.65, step: 0.05, def: 1.0, unit: '×' },
+];
+
 /**
- * Renders the Hardware/Systems Hero telemetry, searchable capability matrix,
- * and ruled repository ledger for @KH4NHTU0N9.
+ * Renders the Hardware Cockpit Operator Console (ID, real-time oscilloscope canvas,
+ * live geometry sliders), searchable Capability Matrix, and Source Repository Ledger.
  */
 export class ProfileView {
   /**
-   * @param {{ heroRoot: HTMLElement, sectionsRoot: HTMLElement, footerRoot: HTMLElement }} roots
+   * @param {{ consoleRoot: HTMLElement, sectionsRoot: HTMLElement, footerRoot: HTMLElement }} roots
    * @param {typeof PROFILE_DATA} [profile]
+   * @param {{ onParamChange?: (key: string, val: number) => void }} [callbacks]
    */
-  constructor({ heroRoot, sectionsRoot, footerRoot }, profile = PROFILE_DATA) {
-    this.heroRoot = heroRoot;
+  constructor({ consoleRoot, sectionsRoot, footerRoot }, profile = PROFILE_DATA, callbacks = {}) {
+    this.consoleRoot = consoleRoot;
     this.sectionsRoot = sectionsRoot;
     this.footerRoot = footerRoot;
     this.profile = profile;
+    this.callbacks = callbacks;
 
     this.activeDomainId = 'all';
     this.searchQuery = '';
     this.domainButtons = new Map();
+    this.sliderControls = new Map();
+    this.scopeCanvasEl = null;
+    this.scopeStatsEl = null;
     this.indexGridEl = null;
     this.reposGridEl = null;
     this.reposStatusEl = null;
-    this.specModeEl = null;
-    this.specEqEl = null;
-    this.specTopologyEl = null;
-    this.lastTelemetrySig = '';
+    this.lastScopeStatsText = '';
 
-    this.renderHero();
+    this.renderConsole();
     this.renderSectionsBase();
     this.renderDomains('all');
     this.renderRepos(this.profile.fallbackRepos, 'fallback');
     this.renderFooter();
   }
 
-  renderHero() {
-    this.heroRoot.textContent = '';
+  getScopeCanvas() {
+    return this.scopeCanvasEl;
+  }
+
+  renderConsole() {
+    this.consoleRoot.textContent = '';
+
+    const bar = createEl('div', 'pane-header');
+    bar.appendChild(createEl('span', 'pane-title', 'UNIT_01 // OPERATOR & SIGNAL_SCOPE'));
+    bar.appendChild(createEl('span', 'pane-tag pane-tag--live', 'NOMINAL'));
+    this.consoleRoot.appendChild(bar);
+
+    const body = createEl('div', 'console-body');
 
     const identityStrip = createEl('div', 'hero-id-strip');
     if (isSafeExternalUrl(this.profile.avatarUrl)) {
@@ -67,49 +87,72 @@ export class ProfileView {
       avatar.src = this.profile.avatarUrl;
       avatar.alt = `${this.profile.login} avatar`;
       avatar.className = 'hero-avatar';
-      avatar.width = 64;
-      avatar.height = 64;
+      avatar.width = 58;
+      avatar.height = 58;
       avatarFrame.appendChild(avatar);
       identityStrip.appendChild(avatarFrame);
     }
 
     const metaStack = createEl('div', 'hero-meta-stack');
     metaStack.appendChild(
-      createEl('span', 'hero-handle', `ID // @${this.profile.login} · ${this.profile.pronouns.toUpperCase()}`),
+      createEl('span', 'hero-handle', `CALLSIGN // @${this.profile.login} · ${this.profile.pronouns.toUpperCase()}`),
     );
     metaStack.appendChild(
-      createEl('span', 'hero-disciplines', `SPEC // ${this.profile.tagline.toUpperCase()}`),
+      createEl('span', 'hero-disciplines', this.profile.tagline.toUpperCase()),
     );
     identityStrip.appendChild(metaStack);
-    this.heroRoot.appendChild(identityStrip);
+    body.appendChild(identityStrip);
 
-    const h1 = createEl('h1', 'hero-display-name', this.profile.displayName);
-    this.heroRoot.appendChild(h1);
+    body.appendChild(createEl('h1', 'hero-display-name', this.profile.displayName));
+    body.appendChild(createEl('p', 'hero-statement', this.profile.bio));
 
-    const bioQuote = createEl('p', 'hero-statement', this.profile.bio);
-    this.heroRoot.appendChild(bioQuote);
+    // Real-time Oscilloscope Waveform + Spectral Energy Panel
+    const scopePanel = createEl('div', 'scope-panel');
+    const scopeBar = createEl('div', 'scope-bar');
+    scopeBar.appendChild(createEl('span', 'scope-label', 'CH1 · Y(x,t) WAVEFORM & SPECTRUM'));
+    this.scopeStatsEl = createEl('span', 'scope-stats', 'PK 0.00 · RMS 0.00');
+    scopeBar.appendChild(this.scopeStatsEl);
+    scopePanel.appendChild(scopeBar);
 
-    // Live hardware/math telemetry datasheet synchronized with Canvas 3D preset
-    const specGrid = createEl('div', 'hero-spec-grid');
+    this.scopeCanvasEl = document.createElement('canvas');
+    this.scopeCanvasEl.id = 'scope-canvas';
+    this.scopeCanvasEl.className = 'scope-canvas';
+    this.scopeCanvasEl.setAttribute('aria-label', 'Live mathematical waveform oscilloscope');
+    scopePanel.appendChild(this.scopeCanvasEl);
+    body.appendChild(scopePanel);
 
-    const modeCell = createEl('div', 'hero-spec-cell');
-    modeCell.appendChild(createEl('span', 'hero-spec-label', 'MANIFOLD_KERNEL'));
-    this.specModeEl = createEl('span', 'hero-spec-value', '01 · WAVE');
-    modeCell.appendChild(this.specModeEl);
+    // 2x2 Hardware Geometry Control Rack
+    const rack = createEl('div', 'param-rack');
+    for (const spec of SLIDER_SPECS) {
+      const cell = createEl('div', 'param-cell');
+      const head = createEl('div', 'param-cell__head');
+      const labelEl = createEl('label', 'param-cell__name', spec.code);
+      const inputId = `ctrl-${spec.key}`;
+      labelEl.setAttribute('for', inputId);
+      const valEl = createEl('span', 'param-cell__val', `${spec.def.toFixed(2)}${spec.unit}`);
+      head.append(labelEl, valEl);
 
-    const eqCell = createEl('div', 'hero-spec-cell');
-    eqCell.appendChild(createEl('span', 'hero-spec-label', 'GOVERNING_EQ'));
-    this.specEqEl = createEl('span', 'hero-spec-value hero-spec-value--mono', 'y(x,z,t) = Σ Aₙ·sin(kₙx + ωₙt + φz)');
-    eqCell.appendChild(this.specEqEl);
+      const input = document.createElement('input');
+      input.id = inputId;
+      input.type = 'range';
+      input.className = 'hw-slider';
+      input.min = String(spec.min);
+      input.max = String(spec.max);
+      input.step = String(spec.step);
+      input.value = String(spec.def);
+      input.addEventListener('input', () => {
+        const val = Number(input.value);
+        valEl.textContent = `${val.toFixed(2)}${spec.unit}`;
+        this.callbacks.onParamChange?.(spec.key, val);
+      });
 
-    const topoCell = createEl('div', 'hero-spec-cell');
-    topoCell.appendChild(createEl('span', 'hero-spec-label', 'MESH / AZIMUTH'));
-    this.specTopologyEl = createEl('span', 'hero-spec-value hero-spec-value--mono', '26 SPLINES · 2,184 PTS');
-    topoCell.appendChild(this.specTopologyEl);
+      this.sliderControls.set(spec.key, { input, valEl, unit: spec.unit });
+      cell.append(head, input);
+      rack.appendChild(cell);
+    }
+    body.appendChild(rack);
 
-    specGrid.append(modeCell, eqCell, topoCell);
-    this.heroRoot.appendChild(specGrid);
-
+    // Action Comms Strip
     const linkGrid = createEl('nav', 'hero-links');
     linkGrid.setAttribute('aria-label', 'Social profiles');
     for (const s of this.profile.socials) {
@@ -119,33 +162,30 @@ export class ProfileView {
         createSafeLink(s.url, cls, `${s.label.toUpperCase()} ↗`, { allowMailto: s.allowMailto }),
       );
     }
-    this.heroRoot.appendChild(linkGrid);
+    body.appendChild(linkGrid);
 
-    const hint = createEl(
-      'p',
-      'hero-hint',
-      '[DRAG] ORBIT · [CLICK] DISPERSION · [1–3] MANIFOLD · [SPACE] PAUSE · [R] RESET · [H] SOLO',
-    );
-    this.heroRoot.appendChild(hint);
+    this.consoleRoot.appendChild(body);
   }
 
   /**
-   * Synchronizes hero manifold spec card with live 3D projection telemetry.
+   * Synchronizes hardware slider inputs (e.g. when RESET [R] restores defaults).
+   * @param {Record<string, number>} values
    */
-  updateManifoldTelemetry({ code, label, specTitle, equation, topology, yawText }) {
-    if (!this.specModeEl || !this.specEqEl || !this.specTopologyEl) {
-      return;
+  syncSliderValues(values) {
+    for (const [key, ctrl] of this.sliderControls.entries()) {
+      const num = Number(values[key]);
+      if (!Number.isFinite(num)) continue;
+      ctrl.input.value = String(num);
+      ctrl.valEl.textContent = `${num.toFixed(2)}${ctrl.unit}`;
     }
-    const modeStr = `${code} · ${label.toUpperCase()} — ${specTitle}`;
-    const topoStr = `${topology} · AZ ${yawText}`;
-    const sig = `${modeStr}|${equation}|${topoStr}`;
-    if (sig === this.lastTelemetrySig) {
-      return;
-    }
-    this.lastTelemetrySig = sig;
-    this.specModeEl.textContent = modeStr;
-    this.specEqEl.textContent = equation;
-    this.specTopologyEl.textContent = topoStr;
+  }
+
+  updateScopeReadout({ peak, rms }) {
+    if (!this.scopeStatsEl) return;
+    const text = `PK ${peak.toFixed(2)} · RMS ${rms.toFixed(2)}`;
+    if (text === this.lastScopeStatsText) return;
+    this.lastScopeStatsText = text;
+    this.scopeStatsEl.textContent = text;
   }
 
   renderSectionsBase() {
@@ -155,7 +195,7 @@ export class ProfileView {
     const indexSec = createEl('section', 'swiss-section');
     const indexBar = createEl('div', 'section-bar section-bar--matrix');
     const indexLeft = createEl('div', 'section-bar__left');
-    indexLeft.appendChild(createEl('span', 'section-code', '01 / CAPABILITY MATRIX'));
+    indexLeft.appendChild(createEl('span', 'section-code', '01 // CAPABILITY MATRIX'));
 
     const cmdWrap = createEl('div', 'cmd-filter-wrap');
     const cmdLabel = createEl('label', 'cmd-prompt', '> grep');
@@ -214,7 +254,7 @@ export class ProfileView {
     const worksSec = createEl('section', 'swiss-section');
     const worksBar = createEl('div', 'section-bar');
     const worksLeft = createEl('div', 'section-bar__left');
-    worksLeft.appendChild(createEl('span', 'section-code', '02 / SOURCE REPOSITORIES'));
+    worksLeft.appendChild(createEl('span', 'section-code', '02 // SOURCE REPOSITORIES'));
     this.reposStatusEl = createEl('span', 'status-tag', 'SNAPSHOT');
     worksLeft.appendChild(this.reposStatusEl);
     worksBar.appendChild(worksLeft);
@@ -352,7 +392,7 @@ export class ProfileView {
   renderFooter() {
     this.footerRoot.textContent = '';
     this.footerRoot.appendChild(
-      createEl('span', 'colophon-item', `${this.profile.login} // VANILLA-ESM`),
+      createEl('span', 'colophon-item', `${this.profile.login} // GCS.MK2 · VANILLA-ESM`),
     );
     this.footerRoot.appendChild(
       createEl(
