@@ -30,3 +30,14 @@
   - M3: Profile Portfolio UI + Responsive CSS & Accessibility.
   - M4: End-to-End Headless Chrome Visual & Runtime Audit + Docs.
 
+## Phase 3: Execution (Thực thi)
+### Task Tracker
+- [x] Khởi tạo repo & tài liệu kế hoạch `docs/PLAN.md`
+- [x] `src/math/integrators.js` + unit tests (`tests/integrators.test.mjs`)
+- [x] `src/math/projection3d.js` + unit tests (`tests/projection3d.test.mjs`)
+- [x] `src/math/renderer.js`
+- [x] `src/data/profile.js` + `tests/profileData.test.mjs`
+- [x] `src/ui/equationPanel.js`, `src/ui/profileView.js`, `src/main.js`
+- [x] `index.html`, `styles/main.css`, `README.md`
+
+### DevLog
