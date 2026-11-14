@@ -88,3 +88,88 @@ const THEME_LUTS = new Map(
     },
   ]),
 );
+
+/**
+ * High-precision Canvas 2D renderer for 3D dynamical attractors and parametric surfaces.
+ */
+export class MathCanvasRenderer {
+  /**
+   * @param {HTMLCanvasElement} canvas
+   */
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d', { alpha: false });
+    this.widthCss = 640;
+    this.heightCss = 480;
+    this.dpr = 1;
+
+    this.themeId = 'quantum';
+    this.showAxes = true;
+    this.pointer = { x: 0, y: 0, active: false };
+    this.pulses = [];
+    this.axesDesc = buildAxisDescriptors(1.22);
+
+    this.capacity = 0;
+    this.projX = new Float32Array(0);
+    this.projY = new Float32Array(0);
+    this.projDepth = new Float32Array(0);
+    this.projVis = new Uint8Array(0);
+
+    this.lastTelemetry = {
+      stateSample: [0, 0, 0],
+      derivativeSample: [0, 0, 0],
+      speedMag: 0,
+      vertexCount: 0,
+    };
+
+    this.resize();
+  }
+
+  /**
+   * Selects active oscilloscope color theme.
+   * @param {string} themeId
+   */
+  setTheme(themeId) {
+    if (Object.hasOwn(COLOR_THEMES, themeId)) {
+      this.themeId = themeId;
+    }
+  }
+
+  /**
+   * Toggles 3D coordinate axes and polar reference rings.
+   * @param {boolean} visible
+   */
+  setShowAxes(visible) {
+    this.showAxes = Boolean(visible);
+  }
+
+  /**
+   * Updates cursor coordinates for localized magnetic deflection.
+   * @param {number} xPx
+   * @param {number} yPx
+   * @param {boolean} active
+   */
+  setPointerPosition(xPx, yPx, active) {
+    this.pointer.x = xPx;
+    this.pointer.y = yPx;
+    this.pointer.active = Boolean(active);
+  }
+
+  /**
+   * Emits an expanding harmonic wave ring from a canvas click.
+   * @param {number} xPx
+   * @param {number} yPx
+   * @param {number} timeSec
+   */
+  triggerWavePulse(xPx, yPx, timeSec) {
+    if (this.pulses.length >= MAX_ACTIVE_PULSES) {
+      this.pulses.shift();
+    }
+    this.pulses.push({
+      x: xPx,
+      y: yPx,
+      birthSec: timeSec,
+      maxRadius: Math.min(this.widthCss, this.heightCss) * 0.36,
+    });
+  }
+}
