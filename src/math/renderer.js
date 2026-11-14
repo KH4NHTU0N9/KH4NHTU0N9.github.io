@@ -304,4 +304,57 @@ export class MathCanvasRenderer {
     }
     ctx.restore();
   }
+
+  projectVertices(points, vertexCount, w, h, camera, timeSec) {
+    const pActive = this.pointer.active;
+    const px = this.pointer.x;
+    const py = this.pointer.y;
+    const deflectSq = POINTER_DEFLECT_RADIUS_PX * POINTER_DEFLECT_RADIUS_PX;
+
+    const activePulses = this.pulses.filter((pulse) => timeSec - pulse.birthSec < PULSE_LIFETIME_SEC);
+    this.pulses = activePulses;
+
+    for (let i = 0; i < vertexCount; i++) {
+      const base = i * 3;
+      const p = projectPoint3D(points[base], points[base + 1], points[base + 2], w, h, camera);
+      if (!p.visible) {
+        this.projVis[i] = 0;
+        continue;
+      }
+      let sx = p.sx;
+      let sy = p.sy;
+
+      if (pActive) {
+        const dx = sx - px;
+        const dy = sy - py;
+        const d2 = dx * dx + dy * dy;
+        if (d2 > 0.5 && d2 < deflectSq) {
+          const dist = Math.sqrt(d2);
+          const falloff = 1 - dist / POINTER_DEFLECT_RADIUS_PX;
+          const push = falloff * falloff * POINTER_DEFLECT_STRENGTH_PX;
+          sx += (dx / dist) * push;
+          sy += (dy / dist) * push;
+        }
+      }
+
+      for (const pulse of activePulses) {
+        const ageNorm = (timeSec - pulse.birthSec) / PULSE_LIFETIME_SEC;
+        const waveRadius = ageNorm * pulse.maxRadius;
+        const dx = sx - pulse.x;
+        const dy = sy - pulse.y;
+        const dist = Math.hypot(dx, dy);
+        const band = Math.abs(dist - waveRadius);
+        if (dist > 1 && band < 28) {
+          const amp = (1 - band / 28) * (1 - ageNorm) * 7.5;
+          sx += (dx / dist) * amp;
+          sy += (dy / dist) * amp;
+        }
+      }
+
+      this.projX[i] = sx;
+      this.projY[i] = sy;
+      this.projDepth[i] = p.depthNorm;
+      this.projVis[i] = 1;
+    }
+  }
 }
