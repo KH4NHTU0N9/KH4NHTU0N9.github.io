@@ -84,5 +84,46 @@ export class EquationPanel {
     header.appendChild(actions);
     this.container.appendChild(header);
 
+    // Model selector strip
+    const modelNav = createEl('div', 'segmented-row');
+    modelNav.setAttribute('role', 'tablist');
+    modelNav.setAttribute('aria-label', 'Mathematical models');
+
+    let index = 1;
+    for (const model of Object.values(MATH_MODELS)) {
+      const btn = createEl('button', 'seg-pill', `${index}. ${model.name}`);
+      btn.type = 'button';
+      btn.dataset.modelId = model.id;
+      btn.setAttribute('role', 'tab');
+      btn.addEventListener('click', () => this.callbacks.onSelectModel(model.id));
+      this.modelButtons.set(model.id, btn);
+      modelNav.appendChild(btn);
+      index += 1;
+    }
+    this.container.appendChild(modelNav);
+
+    // Governing equations box
+    const eqBox = createEl('div', 'equation-card');
+    const eqHead = createEl('div', 'equation-card__head');
+    eqHead.appendChild(createEl('span', 'mono-label', 'GOVERNING SYSTEM'));
+    eqBox.appendChild(eqHead);
+    this.eqListEl = createEl('div', 'equation-card__lines');
+    eqBox.appendChild(this.eqListEl);
+    this.container.appendChild(eqBox);
+
+    // Live parameter sliders container
+    const paramsSection = createEl('div', 'params-section');
+    const paramsHead = createEl('div', 'params-section__head');
+    paramsHead.appendChild(createEl('span', 'mono-label', 'PARAMETERS'));
+    const resetParamsBtn = createEl('button', 'link-action', 'Reset Defaults');
+    resetParamsBtn.type = 'button';
+    resetParamsBtn.addEventListener('click', () => this.callbacks.onResetParams());
+    paramsHead.appendChild(resetParamsBtn);
+    paramsSection.appendChild(paramsHead);
+
+    this.slidersRoot = createEl('div', 'sliders-grid');
+    paramsSection.appendChild(this.slidersRoot);
+    this.container.appendChild(paramsSection);
+
   }
 }
