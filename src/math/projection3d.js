@@ -15,7 +15,16 @@ export function createCameraState() {
 /**
  * Projects a single 3D world-space coordinate onto 2D screen pixels.
  */
-export function projectPoint3D(x, y, z, widthPx, heightPx, camera) {
+export function projectPoint3D(
+  x,
+  y,
+  z,
+  widthPx,
+  heightPx,
+  camera,
+  centerXRatio = 0.52,
+  centerYRatio = 0.5,
+) {
   const cy = Math.cos(camera.yawRad);
   const sy = Math.sin(camera.yawRad);
   const cp = Math.cos(camera.pitchRad);
@@ -35,8 +44,8 @@ export function projectPoint3D(x, y, z, widthPx, heightPx, camera) {
   const proj = camera.focalScale / zCam;
 
   return {
-    sx: widthPx * 0.52 + rx * proj * scalePx,
-    sy: heightPx * 0.5 - py * proj * scalePx,
+    sx: widthPx * centerXRatio + rx * proj * scalePx,
+    sy: heightPx * centerYRatio - py * proj * scalePx,
     zCam,
     depthNorm: Math.max(0.15, Math.min(1, 1.35 - (zCam - 2.3) / 3.2)),
     visible: true,
