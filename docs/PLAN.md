@@ -13,3 +13,20 @@
   - [MDN Web Docs — CanvasRenderingContext2D](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D)
   - [Edward N. Lorenz (1963) — Deterministic Nonperiodic Flow (AMS)](https://journals.ametsoc.org/view/journals/atsc/20/2/1520-0469_1963_020_0130_dnf_2_0_co_2.xml)
 
+## Phase 2: Planning (Lập kế hoạch)
+- **Kiến trúc hệ thống:**
+  - `src/math/integrators.js`: RK4 ODE steppers & parametric curve/surface generators (`lorenz`, `halvorsen`, `torusKnot`, `mobius`).
+  - `src/math/projection3d.js`: Camera yaw/pitch/zoom transform, coordinate axes, depth mapping.
+  - `src/math/renderer.js`: Retina 2D Canvas oscilloscope/phase-space renderer với trail glow, tracer heads và interactive pointer ripple.
+  - `src/data/profile.js`: Dữ liệu Profile & Tech Stack đã xác thực từ GitHub (`KH4NHTU0N9`).
+  - `src/ui/equationPanel.js` & `src/ui/profileView.js`: Điều khiển công thức live, domain filtering, safe DOM rendering.
+- **Quản lý rủi ro (Risk Management):**
+  - *Bùng nổ số học RK4 khi đổi tham số lớn:* Giới hạn miền slider an toàn và kẹp biên bước tích phân / phát hiện diverged state tự reset quỹ đạo.
+  - *GitHub REST API rate-limit (`60 req/h`):* Dùng snapshot verified trong `src/data/profile.js` làm mặc định và chỉ cập nhật bổ sung khi API trả `HTTP 200` hợp lệ.
+  - *Chống XSS:* Toàn bộ text/link đi qua DOM `textContent` và bộ kiểm tra URL allowlist `https:`/`mailto:`.
+- **Lộ trình (Milestones):**
+  - M1: Core Math Engine + Node.js unit tests.
+  - M2: Interactive Canvas 3D Oscilloscope & Equation Controls.
+  - M3: Profile Portfolio UI + Responsive CSS & Accessibility.
+  - M4: End-to-End Headless Chrome Visual & Runtime Audit + Docs.
+
