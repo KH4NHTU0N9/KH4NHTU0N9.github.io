@@ -1,4 +1,4 @@
-import { clamp, spectralRgba } from './mathArt.js';
+import { clamp, spectralRgba } from './mathArt.js?v=gcs22';
 
 const SPECTRUM_BANDS = 18;
 const SCOPE_SAMPLES = 72;
@@ -14,9 +14,9 @@ export class OscilloscopeRenderer {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { alpha: false });
-    this.widthCss = 360;
-    this.heightCss = 84;
-    this.dpr = 1;
+    this.widthCss = 0;
+    this.heightCss = 0;
+    this.dpr = 0;
     this.bandEnergy = new Float32Array(SPECTRUM_BANDS);
     this.bandCounts = new Uint16Array(SPECTRUM_BANDS);
     this.resize();
@@ -27,15 +27,23 @@ export class OscilloscopeRenderer {
     const w = Math.max(180, Math.floor(rect.width || 360));
     const h = Math.max(64, Math.floor(rect.height || 84));
     const dpr = clamp(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 1, 2);
+    const targetW = Math.round(w * dpr);
+    const targetH = Math.round(h * dpr);
 
-    if (w === this.widthCss && h === this.heightCss && dpr === this.dpr) {
+    if (
+      w === this.widthCss &&
+      h === this.heightCss &&
+      dpr === this.dpr &&
+      this.canvas.width === targetW &&
+      this.canvas.height === targetH
+    ) {
       return;
     }
     this.widthCss = w;
     this.heightCss = h;
     this.dpr = dpr;
-    this.canvas.width = Math.round(w * dpr);
-    this.canvas.height = Math.round(h * dpr);
+    this.canvas.width = targetW;
+    this.canvas.height = targetH;
   }
 
   /**
@@ -44,7 +52,9 @@ export class OscilloscopeRenderer {
    * @returns {{ peak: number, rms: number }}
    */
   render(scene) {
-    this.resize();
+    if (this.widthCss === 0 || this.heightCss === 0 || this.canvas.width === 0 || this.canvas.height === 0) {
+      this.resize();
+    }
     const ctx = this.ctx;
     if (!ctx || !scene?.points?.length) {
       return { peak: 0, rms: 0 };

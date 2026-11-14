@@ -1,5 +1,5 @@
-import { clamp, sampleMathArtScene, spectralRgba } from './mathArt.js';
-import { buildAxisDescriptors, projectPoint3D } from './projection3d.js';
+import { clamp, sampleMathArtScene, spectralRgba } from './mathArt.js?v=gcs22';
+import { buildAxisDescriptors, projectPoint3D } from './projection3d.js?v=gcs22';
 
 const LUT_SIZE = 48;
 const TAU = Math.PI * 2;
@@ -40,9 +40,9 @@ export class MathCanvasRenderer {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { alpha: false });
-    this.widthCss = 680;
-    this.heightCss = 640;
-    this.dpr = 1;
+    this.widthCss = 0;
+    this.heightCss = 0;
+    this.dpr = 0;
 
     this.zen = false;
     this.pointer = { x: 0, y: 0, active: false };
@@ -99,19 +99,29 @@ export class MathCanvasRenderer {
 
   resize() {
     const rect = this.canvas.getBoundingClientRect();
-    const w = Math.max(240, Math.floor(rect.width || window.innerWidth || 680));
-    const h = Math.max(220, Math.floor(rect.height || window.innerHeight || 640));
+    const fallbackW = typeof window !== 'undefined' ? window.innerWidth || 680 : 680;
+    const fallbackH = typeof window !== 'undefined' ? window.innerHeight || 640 : 640;
+    const w = Math.max(240, Math.floor(rect.width || fallbackW));
+    const h = Math.max(220, Math.floor(rect.height || fallbackH));
     const rawDpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
     const dpr = clamp(rawDpr, 1, 2);
+    const targetW = Math.round(w * dpr);
+    const targetH = Math.round(h * dpr);
 
-    if (w === this.widthCss && h === this.heightCss && dpr === this.dpr) {
+    if (
+      w === this.widthCss &&
+      h === this.heightCss &&
+      dpr === this.dpr &&
+      this.canvas.width === targetW &&
+      this.canvas.height === targetH
+    ) {
       return;
     }
     this.widthCss = w;
     this.heightCss = h;
     this.dpr = dpr;
-    this.canvas.width = Math.round(w * dpr);
-    this.canvas.height = Math.round(h * dpr);
+    this.canvas.width = targetW;
+    this.canvas.height = targetH;
   }
 
   ensureCapacity(count) {
@@ -126,7 +136,9 @@ export class MathCanvasRenderer {
   }
 
   render({ presetId, camera, timeSec, params }) {
-    this.resize();
+    if (this.widthCss === 0 || this.heightCss === 0 || this.canvas.width === 0 || this.canvas.height === 0) {
+      this.resize();
+    }
     const ctx = this.ctx;
     if (!ctx) {
       return null;
