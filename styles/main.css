@@ -203,3 +203,109 @@ input:focus-visible {
   border: 0;
 }
 
+/* =========================================================
+   Equation & Parameter Control Panel
+   ========================================================= */
+.equation-panel {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.eq-panel__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.eq-panel__title-group {
+  min-width: 0;
+}
+
+.eyebrow-tag {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--accent-cyan);
+}
+
+.eq-panel__subtitle {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.eq-panel__quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.btn {
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: border-color 140ms ease, background-color 140ms ease;
+}
+
+.btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(148, 163, 184, 0.34);
+}
+
+.btn--accent {
+  border-color: rgba(56, 189, 248, 0.42);
+  color: var(--accent-cyan);
+  background: rgba(56, 189, 248, 0.08);
+}
+
+.btn--accent:hover {
+  background: rgba(56, 189, 248, 0.16);
+}
+
+.btn--compact {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.segmented-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.seg-pill {
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  transition: all 140ms ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.seg-pill:hover {
+  color: var(--text-primary);
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+.seg-pill.is-active {
+  background: rgba(56, 189, 248, 0.14);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
