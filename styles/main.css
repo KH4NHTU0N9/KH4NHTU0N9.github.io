@@ -810,3 +810,57 @@ input:focus-visible {
   text-decoration: underline;
 }
 
+/* =========================================================
+   Responsive Breakpoints
+   ========================================================= */
+@media (max-width: 1040px) {
+  .math-stage-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .canvas-stage,
+  #math-canvas {
+    min-height: 410px;
+  }
+
+  .repos-grid,
+  .notes-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .app-shell {
+    padding: 12px 12px 36px;
+  }
+
+  .seg-pill {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+
+  .canvas-stage,
+  #math-canvas {
+    min-height: 320px;
+    height: 340px;
+  }
+
+  .hud-hint {
+    display: none;
+  }
+
+  .profile-hero__main {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .telemetry-strip {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .repos-grid,
+  .notes-grid {
+    grid-template-columns: 1fr;
+  }
+}
