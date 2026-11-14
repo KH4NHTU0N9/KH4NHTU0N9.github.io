@@ -63,3 +63,42 @@ test('normalizeRepoRecord filters profile README repo and rejects unsafe URLs', 
     updatedAt: null,
   });
 });
+
+test('fetchPublicReposWithFallback returns verified fallback when network fails and filters forks live', async () => {
+  const failingResult = await fetchPublicReposWithFallback('KH4NHTU0N9', {
+    fetchImpl: async () => {
+      throw new Error('offline');
+    },
+  });
+  assert.equal(failingResult.source, 'fallback');
+  assert.equal(failingResult.repos.length, 6);
+
+  const liveResult = await fetchPublicReposWithFallback('KH4NHTU0N9', {
+    limit: 2,
+    fetchImpl: async () => ({
+      ok: true,
+      json: async () => [
+        { name: 'FORKED', fork: true, html_url: 'https://github.com/KH4NHTU0N9/FORKED' },
+        { name: 'KH4NHTU0N9', fork: false, html_url: 'https://github.com/KH4NHTU0N9/KH4NHTU0N9' },
+        {
+          name: 'ASCII-CHRISTMAS',
+          fork: false,
+          html_url: 'https://github.com/KH4NHTU0N9/ASCII-CHRISTMAS',
+          language: 'JavaScript',
+          stargazers_count: 1,
+        },
+        {
+          name: 'DRONE-COMPUTER-VISION-PROJECT',
+          fork: false,
+          html_url: 'https://github.com/KH4NHTU0N9/DRONE-COMPUTER-VISION-PROJECT',
+          language: 'Python',
+          stargazers_count: 1,
+        },
+      ],
+    }),
+  });
+  assert.equal(liveResult.source, 'live');
+  assert.equal(liveResult.repos.length, 2);
+  assert.equal(liveResult.repos[0].name, 'ASCII-CHRISTMAS');
+  assert.equal(liveResult.repos[1].name, 'DRONE-COMPUTER-VISION-PROJECT');
+});
