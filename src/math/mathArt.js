@@ -10,23 +10,32 @@ export function clamp(val, min, max) {
 }
 
 /**
- * Available visual modes exposed via the header switcher.
+ * Available visual modes and verified geometric specifications exposed via the HUD.
  */
 export const ART_PRESETS = Object.freeze({
   wave: Object.freeze({
     id: 'wave',
     code: '01',
     label: 'Wave',
+    specTitle: 'FOURIER DISPERSION SHEET',
+    equation: 'y(x,z,t) = Σ Aₙ·sin(kₙx + ωₙt + φz)',
+    topology: '26 SPLINES · 2,184 PTS',
   }),
   spiro: Object.freeze({
     id: 'spiro',
     code: '02',
     label: 'Spiro',
+    specTitle: 'COUPLED HYPOTROCHOID',
+    equation: 'r(θ,t) = R + r·cos(7θ + ωt + φₖ)',
+    topology: '9 RINGS · P:3 Q:7 · 1,980 PTS',
   }),
   tesseract: Object.freeze({
     id: 'tesseract',
     code: '03',
     label: '4D',
+    specTitle: '4D HYPERCUBE PROJECTION',
+    equation: 'R⁴ → R³ ROT(XW, ZW) + MERIDIAN',
+    topology: '16V / 32E · 256 PTS',
   }),
 });
 
