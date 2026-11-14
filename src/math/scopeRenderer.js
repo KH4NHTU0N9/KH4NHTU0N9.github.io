@@ -1,4 +1,4 @@
-import { clamp, spectralRgba } from './mathArt.js?v=gcs22';
+import { clamp, spectralRgba } from './mathArt.js?v=gcs23';
 
 const SPECTRUM_BANDS = 18;
 const SCOPE_SAMPLES = 72;
@@ -56,13 +56,14 @@ export class OscilloscopeRenderer {
       this.resize();
     }
     const ctx = this.ctx;
-    if (!ctx || !scene?.points?.length) {
+    const pts = scene?.positions || scene?.points;
+    const vertCount = scene?.count ?? Math.floor((pts?.length || 0) / 3);
+    if (!ctx || !pts || vertCount <= 0) {
       return { peak: 0, rms: 0 };
     }
 
     const w = this.widthCss;
     const h = this.heightCss;
-    const vertCount = Math.floor(scene.points.length / 3);
 
     this.bandEnergy.fill(0);
     this.bandCounts.fill(0);
@@ -70,7 +71,7 @@ export class OscilloscopeRenderer {
     let peak = 0;
     let sumSq = 0;
     for (let i = 0; i < vertCount; i++) {
-      const y = scene.points[i * 3 + 1];
+      const y = pts[i * 3 + 1];
       const absY = Math.abs(y);
       if (absY > peak) peak = absY;
       sumSq += y * y;
@@ -132,7 +133,7 @@ export class OscilloscopeRenderer {
     for (let s = 0; s < SCOPE_SAMPLES; s++) {
       const tNorm = s / (SCOPE_SAMPLES - 1);
       const idx = Math.min(vertCount - 1, Math.floor(tNorm * (vertCount - 1)));
-      const yVal = clamp(scene.points[idx * 3 + 1] / normScale, -1, 1);
+      const yVal = clamp(pts[idx * 3 + 1] / normScale, -1, 1);
       const px = tNorm * waveW;
       const py = h * 0.5 - yVal * (h * 0.38);
       if (s === 0) ctx.moveTo(px, py);
