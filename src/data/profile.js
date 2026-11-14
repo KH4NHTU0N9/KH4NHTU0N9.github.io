@@ -260,3 +260,68 @@ export const PROFILE_DATA = Object.freeze({
     }),
   ]),
 });
+
+/**
+ * Fetches live non-fork public repositories from the GitHub REST API,
+ * falling back cleanly to verified offline metadata if network/rate-limits fail.
+ *
+ * @param {string} [username]
+ * @param {{ fetchImpl?: typeof fetch, limit?: number }} [options]
+ * @returns {Promise<{ repos: ReturnType<typeof normalizeRepoRecord>[], source: 'live' | 'fallback' }>}
+ */
+export async function fetchPublicReposWithFallback(username = PROFILE_DATA.login, options = {}) {
+  const fetchFn = options.fetchImpl ?? (typeof fetch === 'function' ? fetch : null);
+  const limit = Number.isInteger(options.limit) && options.limit > 0 ? options.limit : 6;
+  const fallback = PROFILE_DATA.fallbackRepos.slice(0, limit);
+
+  if (!fetchFn) {
+    return { repos: fallback, source: 'fallback' };
+  }
+
+  const endpoint = `https://api.github.com/users/${encodeURIComponent(username)}/repos?per_page=40&sort=updated`;
+  try {
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), 3500) : null;
+    const resp = await fetchFn(endpoint, {
+      headers: { Accept: 'application/vnd.github+json' },
+      signal: controller ? controller.signal : undefined,
+    });
+    if (timer) {
+      clearTimeout(timer);
+    }
+    if (!resp.ok) {
+      return { repos: fallback, source: 'fallback' };
+    }
+
+    const payload = await resp.json();
+    if (!Array.isArray(payload)) {
+      return { repos: fallback, source: 'fallback' };
+    }
+
+    const curated = [];
+    for (const item of payload) {
+      if (item && item.fork) {
+        continue;
+      }
+      const norm = normalizeRepoRecord(item, username);
+      if (!norm) {
+        continue;
+      }
+      // Preserve known verified summary for ASCII-CHRISTMAS when upstream description is null.
+      if (norm.name === 'ASCII-CHRISTMAS' && !norm.description) {
+        norm.description = 'Interactive 3D ASCII projection scene hosted on GitHub Pages.';
+      }
+      curated.push(norm);
+      if (curated.length >= limit) {
+        break;
+      }
+    }
+
+    if (curated.length === 0) {
+      return { repos: fallback, source: 'fallback' };
+    }
+    return { repos: curated, source: 'live' };
+  } catch {
+    return { repos: fallback, source: 'fallback' };
+  }
+}
