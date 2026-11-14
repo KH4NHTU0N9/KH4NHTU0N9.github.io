@@ -178,3 +178,28 @@ input:focus-visible {
   border-radius: 999px;
   border: 1px solid rgba(148, 163, 184, 0.14);
 }
+
+/* Zen Fullscreen Mode */
+.app-shell.is-zen {
+  max-width: none;
+  padding: 0;
+}
+
+.app-shell.is-zen .equation-panel,
+.app-shell.is-zen .profile-view {
+  display: none;
+}
+
+.app-shell.is-zen .math-stage-grid {
+  grid-template-columns: 1fr;
+}
+
+.app-shell.is-zen .canvas-stage,
+.app-shell.is-zen #math-canvas {
+  width: 100vw;
+  height: 100vh;
+  min-height: 100vh;
+  border-radius: 0;
+  border: 0;
+}
+
