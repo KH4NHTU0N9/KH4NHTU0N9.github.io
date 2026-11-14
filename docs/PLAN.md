@@ -31,11 +31,11 @@
   - Vá 2 điểm từ kiểm thử ảnh chụp thực tế: ẩn `.hud-guide` trong `.is-zen` để tránh đè nút `RETURN TO GCS [H]`, và thêm `scroll-margin-top` đồng bộ cho `.sections-stack` trên mobile.
 
 ## Phase 4: Monitoring (Giám sát)
-- **Kiểm thử đơn vị (`node --test tests/*.test.mjs`):** **12/12 pass**, `fail 0`, `skipped 0`, `SYNTAX_OK` qua `node --check` trên toàn bộ ES modules trong `src/`.
-- **Kiểm thử trình duyệt Headless Chrome CDP:**
-  - Zero lỗi runtime: `consoleErrors: []`, `exceptions: []`, `logErrors: []`.
-  - Desktop (`1440×900`, `2x`): `overflow: false`, `deckHeight: 856`, tương tác slider (`1.90×`, `1.45×`, `1.20×`) cập nhật trực tiếp `scopeStats` (`PK 0.61 · RMS 0.26` → `PK 0.93 · RMS 0.39`), `RESET` khôi phục `1.00×`, `zenStage: { w: 1440, h: 900, isZen: true }`.
-  - Mobile (`390×844`, `3x`): `overflow: false` ở cả Hero (`stageY: 123`, `stageH: 304`) lẫn Capability Matrix / Ledger.
+- **Kiểm thử đơn vị (`node --test tests/*.test.mjs`):** **15/15 pass**, `fail 0`, `skipped 0`, `SYNTAX_OK` qua `node --check` trên toàn bộ ES modules trong `src/`.
+- **Debug & Hardening sau triển khai `GCS.MK2`:**
+  - *Nguyên nhân gốc rễ gây màn hình đen/trống trên trình duyệt từng mở bản trước:* GitHub Pages trả `cache-control: max-age=600` cho asset không gắn version (`./styles/main.css`, `./src/main.js`, relative imports); khi chuyển liên tiếp giữa `257103d` và `f904558`, HTML/JS/CSS lệch phiên bản kích hoạt silent `return` trong `initApp()`, `TypeError` trên `ProfileView`, hoặc `#math-canvas` (thiếu `z-index: 0`) đè lên `.app-shell` theo CSS 2.2 Appendix E.
+  - *Lỗi ẩn & tương thích đi kèm đã vá:* Thêm `.nojekyll`, đồng bộ cache-busting `?v=gcs22` across HTML/CSS/ESM (`tests/rendererResize.test.mjs`), fallback `vh` / `top-right-bottom-left` / `overflow-x: hidden` trước `dvh`/`inset`/`clip`, static fallback HTML + `renderBootRecovery()` thay vì silent return, sửa lỗi early-return giữ nguyên `300×150` trong `MathCanvasRenderer.resize()` & `OscilloscopeRenderer.resize()`, dừng vòng `rAF` khi Pause, `finally { clearTimeout(timer); }` trong `fetchPublicReposWithFallback()`, và `blur`/`lostpointercapture` cleanup.
+- **Kiểm thử trình duyệt (Desktop `1440×900`, Mobile `390×844`, & Cache Skew):** Đang chạy kiểm chứng cuối cùng trên local server và live `https://kh4nhtu0n9.github.io/`.
 
 ## Phase 5: Closure (Đóng dự án)
-- Hoàn tất dọn tệp nháp kiểm thử, commit atomic theo từng module, push `origin/main` và kiểm tra HTTP `200` trên `https://kh4nhtu0n9.github.io/`.
+- Hoàn tất dọn tệp nháp kiểm thử, commit atomic theo từng bước, push `origin/main` và xác thực live URL `https://kh4nhtu0n9.github.io/` trên trình duyệt thực tế.
