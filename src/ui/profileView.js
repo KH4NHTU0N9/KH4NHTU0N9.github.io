@@ -184,4 +184,42 @@ export class ProfileView {
       }
     }
   }
+
+  /**
+   * Updates repository cards from verified snapshot or live GitHub REST API data.
+   * @param {Array<any>} repos
+   * @param {'live' | 'fallback'} source
+   */
+  renderRepos(repos, source) {
+    if (!this.reposGridEl) {
+      return;
+    }
+    this.reposSourceBadgeEl.textContent = source === 'live' ? 'GitHub API · Live' : 'Verified Snapshot';
+    this.reposGridEl.textContent = '';
+
+    for (const repo of repos) {
+      const card = createEl('article', 'repo-card');
+
+      const top = createEl('div', 'repo-card__top');
+      top.appendChild(createSafeLink(repo.htmlUrl, 'repo-card__name', repo.name));
+      top.appendChild(createEl('span', 'repo-card__lang', repo.language));
+      card.appendChild(top);
+
+      const summary = repo.description || `Public ${repo.language} source repository on GitHub.`;
+      card.appendChild(createEl('p', 'repo-card__desc', summary));
+
+      const footer = createEl('div', 'repo-card__footer');
+      footer.appendChild(createEl('span', 'repo-card__stars', `★ ${repo.stars}`));
+
+      const links = createEl('div', 'repo-card__links');
+      links.appendChild(createSafeLink(repo.htmlUrl, 'repo-link', 'Code ↗'));
+      if (repo.homepage) {
+        links.appendChild(createSafeLink(repo.homepage, 'repo-link repo-link--demo', 'Live Demo ↗'));
+      }
+      footer.appendChild(links);
+      card.appendChild(footer);
+
+      this.reposGridEl.appendChild(card);
+    }
+  }
 }
