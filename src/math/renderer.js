@@ -3,18 +3,18 @@ import { buildAxisDescriptors, projectPoint3D } from './projection3d.js';
 
 const LUT_SIZE = 48;
 const TAU = Math.PI * 2;
-const POINTER_DEFLECT_RADIUS_PX = 132;
-const POINTER_DEFLECT_STRENGTH_PX = 20;
+const POINTER_DEFLECT_RADIUS_PX = 128;
+const POINTER_DEFLECT_STRENGTH_PX = 18;
 const PULSE_LIFETIME_SEC = 1.1;
 const MAX_ACTIVE_PULSES = 6;
-const MICRO_STARS = 44;
-const DATUM_STEP_PX = 72;
+const MICRO_STARS = 36;
+const DATUM_STEP_PX = 48;
 
 const PRISM_CORE_LUT = Array.from({ length: LUT_SIZE }, (_, i) =>
-  spectralRgba(i / LUT_SIZE, 0.92),
+  spectralRgba(i / LUT_SIZE, 0.94),
 );
 const PRISM_HALO_LUT = Array.from({ length: LUT_SIZE }, (_, i) =>
-  spectralRgba(i / LUT_SIZE, 0.17),
+  spectralRgba(i / LUT_SIZE, 0.19),
 );
 
 function buildMicroField() {
@@ -30,7 +30,8 @@ function buildMicroField() {
 }
 
 /**
- * Full-bleed Canvas 2D renderer on pitch-black #050505 with optical prism spectral lines.
+ * Hardware CAD Viewport renderer with calibrated blueprint grid,
+ * 3D analytical coordinate axes, optical prism curves, and reticle telemetry.
  */
 export class MathCanvasRenderer {
   /**
@@ -39,15 +40,15 @@ export class MathCanvasRenderer {
   constructor(canvas) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d', { alpha: false });
-    this.widthCss = 1280;
-    this.heightCss = 800;
+    this.widthCss = 680;
+    this.heightCss = 640;
     this.dpr = 1;
 
     this.zen = false;
     this.pointer = { x: 0, y: 0, active: false };
     this.pulses = [];
     this.microField = buildMicroField();
-    this.axisDescriptors = buildAxisDescriptors(1.38);
+    this.axisDescriptors = buildAxisDescriptors(1.36);
 
     this.cap = 0;
     this.projX = new Float32Array(0);
@@ -62,28 +63,44 @@ export class MathCanvasRenderer {
     this.zen = Boolean(zen);
   }
 
-  setPointerPosition(xPx, yPx, active) {
-    this.pointer.x = xPx;
-    this.pointer.y = yPx;
-    this.pointer.active = Boolean(active);
+  toCanvasLocal(clientX, clientY) {
+    const rect = this.canvas.getBoundingClientRect();
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+    };
   }
 
-  triggerWavePulse(xPx, yPx, timeSec) {
+  setPointerPosition(clientX, clientY, active) {
+    if (!active) {
+      this.pointer.active = false;
+      return;
+    }
+    const local = this.toCanvasLocal(clientX, clientY);
+    const inside =
+      local.x >= 0 && local.y >= 0 && local.x <= this.widthCss && local.y <= this.heightCss;
+    this.pointer.x = local.x;
+    this.pointer.y = local.y;
+    this.pointer.active = inside;
+  }
+
+  triggerWavePulse(clientX, clientY, timeSec) {
+    const local = this.toCanvasLocal(clientX, clientY);
     if (this.pulses.length >= MAX_ACTIVE_PULSES) {
       this.pulses.shift();
     }
     this.pulses.push({
-      x: xPx,
-      y: yPx,
+      x: local.x,
+      y: local.y,
       birthSec: timeSec,
-      maxRadius: Math.min(this.widthCss, this.heightCss) * 0.34,
+      maxRadius: Math.min(this.widthCss, this.heightCss) * 0.36,
     });
   }
 
   resize() {
     const rect = this.canvas.getBoundingClientRect();
-    const w = Math.max(240, Math.floor(rect.width || window.innerWidth || 1280));
-    const h = Math.max(240, Math.floor(rect.height || window.innerHeight || 800));
+    const w = Math.max(240, Math.floor(rect.width || window.innerWidth || 680));
+    const h = Math.max(220, Math.floor(rect.height || window.innerHeight || 640));
     const rawDpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1;
     const dpr = clamp(rawDpr, 1, 2);
 
@@ -108,17 +125,18 @@ export class MathCanvasRenderer {
     this.projVis = new Uint8Array(count);
   }
 
-  render({ presetId, camera, timeSec, scrollProgress = 0 }) {
+  render({ presetId, camera, timeSec, params }) {
+    this.resize();
     const ctx = this.ctx;
     if (!ctx) {
-      return;
+      return null;
     }
 
     const w = this.widthCss;
     const h = this.heightCss;
 
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    ctx.fillStyle = '#050505';
+    ctx.fillStyle = '#050608';
     ctx.fillRect(0, 0, w, h);
 
     this.drawEngineeringDatum(ctx, w, h);
@@ -127,19 +145,9 @@ export class MathCanvasRenderer {
     const activePulses = this.pulses.filter((p) => timeSec - p.birthSec < PULSE_LIFETIME_SEC);
     this.pulses = activePulses;
 
-    const scene = sampleMathArtScene(presetId, timeSec);
+    const scene = sampleMathArtScene(presetId, timeSec, params);
     const vertCount = scene.points.length / 3;
     this.ensureCapacity(vertCount);
-
-    // Subtle spatial composition: right half on desktop hero, upper stage on mobile hero
-    const wideDesktop = w >= 920 && !this.zen;
-    const portraitHero = !wideDesktop && !this.zen;
-    const cxRatio = wideDesktop ? 0.72 - scrollProgress * 0.16 : 0.5;
-    const cyRatio = wideDesktop
-      ? 0.5 - scrollProgress * 0.06
-      : portraitHero
-        ? 0.22 + scrollProgress * 0.16
-        : 0.5;
 
     this.projectPoints(
       scene.points,
@@ -147,30 +155,28 @@ export class MathCanvasRenderer {
       w,
       h,
       camera,
-      cxRatio,
-      cyRatio,
+      0.5,
+      0.5,
       activePulses,
       timeSec,
     );
 
-    const ambientFade = this.zen ? 1 : clamp(1 - scrollProgress * 0.42, 0.45, 1);
-    ctx.save();
-    ctx.globalAlpha = ambientFade;
-
-    this.drawSpatialAxes(ctx, w, h, camera, cxRatio, cyRatio);
+    this.drawSpatialAxes(ctx, w, h, camera, 0.5, 0.5);
     this.drawPolylines(ctx, scene, PRISM_HALO_LUT, 3.2);
-    this.drawPolylines(ctx, scene, PRISM_CORE_LUT, 1.32);
+    this.drawPolylines(ctx, scene, PRISM_CORE_LUT, 1.38);
     this.drawNodes(ctx, scene.nodeIndices);
     this.drawWavePulses(ctx, timeSec);
     this.drawPointerCrosshair(ctx, w, h);
 
-    ctx.restore();
+    return scene;
   }
 
   drawEngineeringDatum(ctx, w, h) {
     ctx.save();
     ctx.lineWidth = 1;
-    ctx.strokeStyle = 'rgba(245, 245, 242, 0.032)';
+
+    // 48px minor CAD grid
+    ctx.strokeStyle = 'rgba(226, 232, 240, 0.05)';
     ctx.beginPath();
     for (let x = DATUM_STEP_PX; x < w; x += DATUM_STEP_PX) {
       const gx = x + 0.5;
@@ -184,27 +190,50 @@ export class MathCanvasRenderer {
     }
     ctx.stroke();
 
-    // Fiducial + intersections every 3 cells
-    const major = DATUM_STEP_PX * 3;
-    ctx.strokeStyle = 'rgba(245, 245, 242, 0.1)';
+    // 192px major CAD axes + crosshair intersections
+    const major = DATUM_STEP_PX * 4;
+    ctx.strokeStyle = 'rgba(226, 232, 240, 0.11)';
     ctx.beginPath();
     for (let x = major; x < w; x += major) {
-      for (let y = major; y < h; y += major) {
-        const cx = x + 0.5;
-        const cy = y + 0.5;
-        ctx.moveTo(cx - 4, cy);
-        ctx.lineTo(cx + 4, cy);
-        ctx.moveTo(cx, cy - 4);
-        ctx.lineTo(cx, cy + 4);
-      }
+      const gx = x + 0.5;
+      ctx.moveTo(gx, 0);
+      ctx.lineTo(gx, h);
     }
-    // Right-edge calibration vernier ticks
-    const rightX = w - 0.5;
-    for (let y = 72, idx = 0; y < h - 24; y += 18, idx++) {
-      const len = idx % 4 === 0 ? 9 : 4;
+    for (let y = major; y < h; y += major) {
+      const gy = y + 0.5;
+      ctx.moveTo(0, gy);
+      ctx.lineTo(w, gy);
+    }
+    ctx.stroke();
+
+    // Center crosshair and perimeter ruler ticks
+    const cx = Math.floor(w * 0.5) + 0.5;
+    const cy = Math.floor(h * 0.5) + 0.5;
+    ctx.strokeStyle = 'rgba(255, 77, 0, 0.24)';
+    ctx.beginPath();
+    ctx.moveTo(cx - 12, cy);
+    ctx.lineTo(cx + 12, cy);
+    ctx.moveTo(cx, cy - 12);
+    ctx.lineTo(cx, cy + 12);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(226, 232, 240, 0.2)';
+    ctx.beginPath();
+    for (let y = 16, idx = 0; y < h - 16; y += 16, idx++) {
+      const len = idx % 4 === 0 ? 8 : 3.5;
       const ty = y + 0.5;
-      ctx.moveTo(rightX - len, ty);
-      ctx.lineTo(rightX, ty);
+      ctx.moveTo(w - 0.5 - len, ty);
+      ctx.lineTo(w - 0.5, ty);
+      ctx.moveTo(0.5, ty);
+      ctx.lineTo(0.5 + len, ty);
+    }
+    for (let x = 24, idx = 0; x < w - 24; x += 24, idx++) {
+      const len = idx % 4 === 0 ? 7 : 3;
+      const tx = x + 0.5;
+      ctx.moveTo(tx, 0.5);
+      ctx.lineTo(tx, 0.5 + len);
+      ctx.moveTo(tx, h - 0.5 - len);
+      ctx.lineTo(tx, h - 0.5);
     }
     ctx.stroke();
     ctx.restore();
@@ -215,8 +244,7 @@ export class MathCanvasRenderer {
     ctx.save();
     ctx.lineWidth = 1;
 
-    // Polar floor datum rings
-    ctx.strokeStyle = 'rgba(245, 245, 242, 0.07)';
+    ctx.strokeStyle = 'rgba(226, 232, 240, 0.14)';
     for (const ring of rings) {
       let open = false;
       ctx.beginPath();
@@ -236,21 +264,20 @@ export class MathCanvasRenderer {
       ctx.stroke();
     }
 
-    // Orthogonal X/Y/Z axis vectors
-    ctx.font = '9px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.font = '10px ui-monospace, SFMono-Regular, Menlo, monospace';
     ctx.textBaseline = 'middle';
     for (const axis of axes) {
       const pa = projectPoint3D(axis.a[0], axis.a[1], axis.a[2], w, h, camera, cxRatio, cyRatio);
       const pb = projectPoint3D(axis.b[0], axis.b[1], axis.b[2], w, h, camera, cxRatio, cyRatio);
       if (pa.visible && pb.visible) {
-        ctx.strokeStyle = 'rgba(245, 245, 242, 0.13)';
+        ctx.strokeStyle = 'rgba(125, 211, 252, 0.25)';
         ctx.beginPath();
         ctx.moveTo(pa.sx, pa.sy);
         ctx.lineTo(pb.sx, pb.sy);
         ctx.stroke();
 
-        ctx.fillStyle = 'rgba(245, 245, 242, 0.36)';
-        ctx.fillText(`+${axis.label.toUpperCase()}`, pb.sx + 4, pb.sy);
+        ctx.fillStyle = 'rgba(125, 211, 252, 0.72)';
+        ctx.fillText(`+${axis.label.toUpperCase()}`, pb.sx + 5, pb.sy);
       }
     }
 
@@ -260,8 +287,8 @@ export class MathCanvasRenderer {
   drawMicroField(ctx, w, h, timeSec) {
     ctx.save();
     for (const s of this.microField) {
-      const alpha = 0.14 + 0.22 * (0.5 + 0.5 * Math.sin(timeSec * 1.1 + s.phase));
-      ctx.fillStyle = `rgba(244, 244, 242, ${alpha.toFixed(3)})`;
+      const alpha = 0.12 + 0.18 * (0.5 + 0.5 * Math.sin(timeSec * 1.1 + s.phase));
+      ctx.fillStyle = `rgba(226, 232, 240, ${alpha.toFixed(3)})`;
       ctx.fillRect(Math.round(s.nx * w), Math.round(s.ny * h), 1.2, 1.2);
     }
     ctx.restore();
@@ -405,14 +432,12 @@ export class MathCanvasRenderer {
       const x = this.projX[idx];
       const y = this.projY[idx];
 
-      // Core focal point
       ctx.fillStyle = '#ffffff';
       ctx.beginPath();
       ctx.arc(x, y, 2, 0, TAU);
       ctx.fill();
 
-      // Target reticle + hardware accent box
-      ctx.strokeStyle = 'rgba(255, 77, 0, 0.62)';
+      ctx.strokeStyle = 'rgba(255, 77, 0, 0.78)';
       ctx.strokeRect(Math.round(x) - 5.5, Math.round(y) - 5.5, 11, 11);
 
       ctx.strokeStyle = 'rgba(245, 245, 242, 0.8)';
@@ -423,9 +448,9 @@ export class MathCanvasRenderer {
       ctx.lineTo(x, y + 9);
       ctx.stroke();
 
-      if (this.widthCss >= 640) {
-        ctx.fillStyle = 'rgba(245, 245, 242, 0.56)';
-        ctx.fillText(`N${tracked} ${Math.round(x)},${Math.round(y)}`, x + 10, y - 8);
+      if (this.widthCss >= 480) {
+        ctx.fillStyle = 'rgba(245, 245, 242, 0.68)';
+        ctx.fillText(`N${tracked}[${Math.round(x)},${Math.round(y)}]`, x + 10, y - 8);
       }
       tracked++;
     }
@@ -451,7 +476,7 @@ export class MathCanvasRenderer {
   }
 
   drawPointerCrosshair(ctx, w, h) {
-    if (!this.pointer.active || this.pointer.x <= 0 || this.pointer.y <= 0 || w < 640) {
+    if (!this.pointer.active || this.pointer.x <= 0 || this.pointer.y <= 0 || w < 420) {
       return;
     }
     const px = Math.round(this.pointer.x) + 0.5;
@@ -461,18 +486,22 @@ export class MathCanvasRenderer {
     }
 
     ctx.save();
-    ctx.strokeStyle = 'rgba(255, 77, 0, 0.45)';
+    ctx.strokeStyle = 'rgba(255, 77, 0, 0.55)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(px - 10, py);
+    ctx.moveTo(px - 11, py);
     ctx.lineTo(px - 3, py);
     ctx.moveTo(px + 3, py);
-    ctx.lineTo(px + 10, py);
-    ctx.moveTo(px, py - 10);
+    ctx.lineTo(px + 11, py);
+    ctx.moveTo(px, py - 11);
     ctx.lineTo(px, py - 3);
     ctx.moveTo(px, py + 3);
-    ctx.lineTo(px, py + 10);
+    ctx.lineTo(px, py + 11);
     ctx.stroke();
+
+    ctx.fillStyle = 'rgba(255, 77, 0, 0.85)';
+    ctx.font = '9px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.fillText(`${Math.round(this.pointer.x)},${Math.round(this.pointer.y)}`, px + 8, py - 8);
     ctx.restore();
   }
 }
