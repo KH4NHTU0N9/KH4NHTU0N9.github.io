@@ -30,9 +30,6 @@ test('all embedded PROFILE_DATA links pass strict URL safety validation', () => 
       assert.equal(isSafeExternalUrl(repo.homepage), true, `${repo.name} homepage`);
     }
   }
-  for (const note of PROFILE_DATA.mathNotes) {
-    assert.equal(isSafeExternalUrl(note.url), true, note.title);
-  }
 });
 
 test('normalizeRepoRecord filters profile README repo and rejects unsafe URLs', () => {

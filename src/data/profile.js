@@ -75,11 +75,21 @@ export function normalizeRepoRecord(rawRepo, username = 'KH4NHTU0N9') {
   };
 }
 
+export const LANGUAGE_COLORS = Object.freeze({
+  JavaScript: '#f1e05a',
+  TypeScript: '#3178c6',
+  Python: '#3572a5',
+  'C++': '#f34b7d',
+  Java: '#b07219',
+  HTML: '#e34c26',
+  Code: '#22d3ee',
+});
+
 export const PROFILE_DATA = Object.freeze({
   login: 'KH4NHTU0N9',
   displayName: 'trankhanhtuong',
   pronouns: 'he/him',
-  tagline: 'Mathematical Systems & Embedded Engineering Observatory',
+  tagline: 'Embedded · Security · Systems Developer',
   bio: "i'm fascinating in coding some tools which can help world look supercalifragilisticexpialidocious",
   avatarUrl: 'https://avatars.githubusercontent.com/u/121629080?v=4',
   githubUrl: 'https://github.com/KH4NHTU0N9',
@@ -124,6 +134,7 @@ export const PROFILE_DATA = Object.freeze({
     Object.freeze({
       id: 'embedded',
       label: 'Embedded & Flight',
+      subtitle: 'Microcontrollers, UAV autopilots & robotics tooling',
       items: Object.freeze([
         'C',
         'C++',
@@ -140,6 +151,7 @@ export const PROFILE_DATA = Object.freeze({
     Object.freeze({
       id: 'security',
       label: 'Security & Forensics',
+      subtitle: 'Network traffic, binary analysis & forensic workflows',
       items: Object.freeze([
         'Linux',
         'Kali Linux',
@@ -157,6 +169,7 @@ export const PROFILE_DATA = Object.freeze({
     Object.freeze({
       id: 'systems',
       label: 'Systems, Data & Cloud',
+      subtitle: 'Backend tooling, databases & runtime deployment',
       items: Object.freeze([
         'Python',
         'TypeScript',
@@ -236,29 +249,6 @@ export const PROFILE_DATA = Object.freeze({
       updatedAt: '2026-04-28T19:04:33Z',
     }),
   ]),
-  mathNotes: Object.freeze([
-    Object.freeze({
-      title: '4th-Order Runge-Kutta (RK4)',
-      summary:
-        'ODE attractors evaluate four midpoint slopes per step, keeping local truncation error O(h^5) without third-party math libraries.',
-      reference: 'Press et al., Numerical Recipes — ODE Integration',
-      url: 'https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods',
-    }),
-    Object.freeze({
-      title: 'Lorenz & Halvorsen Strange Attractors',
-      summary:
-        'Non-linear coupled differential equations produce deterministic chaos on bounded phase-space manifolds.',
-      reference: 'Lorenz (1963), Deterministic Nonperiodic Flow',
-      url: 'https://en.wikipedia.org/wiki/Lorenz_system',
-    }),
-    Object.freeze({
-      title: 'Pure Perspective Projection',
-      summary:
-        'World coordinates rotate via yaw/pitch orthogonal matrices before perspective division mapped to Retina Canvas 2D pixels.',
-      reference: 'MDN Web Docs — CanvasRenderingContext2D',
-      url: 'https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D',
-    }),
-  ]),
 });
 
 /**
@@ -298,13 +288,14 @@ export async function fetchPublicReposWithFallback(username = PROFILE_DATA.login
       return { repos: fallback, source: 'fallback' };
     }
 
+    const pagesRepoName = `${username.toLowerCase()}.github.io`;
     const curated = [];
     for (const item of payload) {
       if (item && item.fork) {
         continue;
       }
       const norm = normalizeRepoRecord(item, username);
-      if (!norm) {
+      if (!norm || norm.name.toLowerCase() === pagesRepoName) {
         continue;
       }
       // Preserve known verified summary for ASCII-CHRISTMAS when upstream description is null.
