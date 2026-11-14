@@ -125,5 +125,45 @@ export class EquationPanel {
     paramsSection.appendChild(this.slidersRoot);
     this.container.appendChild(paramsSection);
 
+    // Theme + coordinate grid row
+    const visualsRow = createEl('div', 'visuals-row');
+    const themeGroup = createEl('div', 'theme-pills');
+    for (const theme of Object.values(COLOR_THEMES)) {
+      const btn = createEl('button', 'theme-pill', theme.label);
+      btn.type = 'button';
+      btn.dataset.themeId = theme.id;
+      btn.addEventListener('click', () => this.callbacks.onSelectTheme(theme.id));
+      this.themeButtons.set(theme.id, btn);
+      themeGroup.appendChild(btn);
+    }
+
+    this.axesToggleBtn = createEl('button', 'btn btn--ghost btn--compact', 'Axes: ON');
+    this.axesToggleBtn.type = 'button';
+    this.axesToggleBtn.addEventListener('click', () => {
+      this.callbacks.onToggleAxes(!this.state.showAxes);
+    });
+
+    visualsRow.append(themeGroup, this.axesToggleBtn);
+    this.container.appendChild(visualsRow);
+
+    // Live phase telemetry strip
+    const telemetry = createEl('div', 'telemetry-strip');
+    const rowCoords = createEl('div', 'telemetry-item');
+    rowCoords.appendChild(createEl('span', 'telemetry-key', 'r(t)'));
+    this.telemetryCoordsEl = createEl('span', 'telemetry-val', '(0.00, 0.00, 0.00)');
+    rowCoords.appendChild(this.telemetryCoordsEl);
+
+    const rowDeriv = createEl('div', 'telemetry-item');
+    rowDeriv.appendChild(createEl('span', 'telemetry-key', 'dr/dt'));
+    this.telemetryDerivEl = createEl('span', 'telemetry-val', '(0.00, 0.00, 0.00)');
+    rowDeriv.appendChild(this.telemetryDerivEl);
+
+    const rowSpeed = createEl('div', 'telemetry-item');
+    rowSpeed.appendChild(createEl('span', 'telemetry-key', '||v||'));
+    this.telemetrySpeedEl = createEl('span', 'telemetry-val', '0.000');
+    rowSpeed.appendChild(this.telemetrySpeedEl);
+
+    telemetry.append(rowCoords, rowDeriv, rowSpeed);
+    this.container.appendChild(telemetry);
   }
 }
