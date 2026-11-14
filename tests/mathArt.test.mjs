@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ART_PRESETS, clamp, sampleMathArtScene } from '../src/math/mathArt.js';
+import { ART_PRESETS, clamp, sampleMathArtScene, spectralRgba } from '../src/math/mathArt.js';
 
 test('clamp constrains out-of-range numbers safely', () => {
   assert.equal(clamp(-5, 0, 10), 0);
@@ -8,31 +8,32 @@ test('clamp constrains out-of-range numbers safely', () => {
   assert.equal(clamp(4.5, 0, 10), 4.5);
 });
 
-test('all generative math presets emit finite bounded 3D vertices and ribbons', () => {
+test('spectralRgba formats valid rgba wavelength strings across gamut', () => {
+  assert.match(spectralRgba(0, 0.9), /^rgba\(\d+,\d+,\d+,0\.9\)$/);
+  assert.match(spectralRgba(0.5, 1), /^rgba\(\d+,\d+,\d+,1\)$/);
+  assert.match(spectralRgba(-0.25, 0.5), /^rgba\(\d+,\d+,\d+,0\.5\)$/);
+});
+
+test('all spectral math art presets emit bounded finite coordinates and polylines', () => {
   for (const presetId of Object.keys(ART_PRESETS)) {
-    const scene = sampleMathArtScene(presetId, 3.25);
-    assert.ok(scene.nodeCoords.length > 0);
-    assert.ok(scene.ribbonPoints.length > 0);
-    assert.ok(scene.ribbons.length > 0);
+    const scene = sampleMathArtScene(presetId, 2.4);
+    assert.ok(scene.points.length > 0);
+    assert.ok(scene.polylines.length > 0);
 
-    for (let i = 0; i < scene.nodeCoords.length; i++) {
-      assert.ok(Number.isFinite(scene.nodeCoords[i]), `${presetId} nodeCoords non-finite`);
-      assert.ok(Math.abs(scene.nodeCoords[i]) < 3, `${presetId} nodeCoords out of bounds`);
-    }
-    for (let i = 0; i < scene.ribbonPoints.length; i++) {
-      assert.ok(Number.isFinite(scene.ribbonPoints[i]), `${presetId} ribbonPoints non-finite`);
-      assert.ok(Math.abs(scene.ribbonPoints[i]) < 3, `${presetId} ribbonPoints out of bounds`);
+    for (let i = 0; i < scene.points.length; i++) {
+      assert.ok(Number.isFinite(scene.points[i]), `${presetId} non-finite coordinate at ${i}`);
+      assert.ok(Math.abs(scene.points[i]) < 4, `${presetId} coordinate exceeded bounds: ${scene.points[i]}`);
     }
 
-    const totalVerts = scene.ribbonPoints.length / 3;
-    for (const idx of scene.tracerIndices) {
-      assert.ok(idx >= 0 && idx < totalVerts, `${presetId} tracer index out of range`);
+    const vertexCount = scene.points.length / 3;
+    for (const idx of scene.nodeIndices) {
+      assert.ok(idx >= 0 && idx < vertexCount, `${presetId} node index out of range`);
     }
   }
 });
 
-test('sampleMathArtScene falls back safely on unknown preset or NaN time', () => {
-  const scene = sampleMathArtScene('non-existent', Number.NaN);
-  assert.equal(scene.preset, 'constellation');
-  assert.ok(Number.isFinite(scene.nodeCoords[0]));
+test('sampleMathArtScene defaults cleanly on invalid preset or NaN time', () => {
+  const scene = sampleMathArtScene('invalid-mode', Number.NaN);
+  assert.equal(scene.preset, 'wave');
+  assert.ok(Number.isFinite(scene.points[0]));
 });
