@@ -20,3 +20,10 @@ test('projectPoint3D rejects points behind near clip plane', () => {
   const behind = projectPoint3D(0, 0, -5, 1000, 800, cam);
   assert.equal(behind.visible, false);
 });
+
+test('buildAxisDescriptors emits 3 axes and 2 closed polar rings', () => {
+  const desc = buildAxisDescriptors(1.2);
+  assert.equal(desc.axes.length, 3);
+  assert.equal(desc.rings.length, 2);
+  assert.equal(desc.rings[0].length, 49);
+});
