@@ -123,3 +123,98 @@ export function getDefaultParams(modelId) {
   for (const p of def.params) out[p.key] = p.default;
   return out;
 }
+
+const odeTrajectoryCache = new Map();
+
+/**
+ * Integrates a complete continuous ODE trajectory with warmup settle + bounded normalization.
+ */
+function sampleOdeTrajectory(modelId, rawParams, timeSec, sampleCount) {
+  const isHalvorsen = modelId === 'halvorsen';
+  const aVal = clamp(rawParams.a ?? 1.4, 1.2, 2.05);
+  const sigmaVal = clamp(rawParams.sigma ?? 10, 2, 24);
+  const rhoVal = clamp(rawParams.rho ?? 28, 10, 50);
+  const betaVal = clamp(rawParams.beta ?? 2.67, 0.5, 6);
+
+  const cacheKey = isHalvorsen
+    ? `halvorsen|${aVal.toFixed(3)}|${sampleCount}`
+    : `lorenz|${sigmaVal.toFixed(2)}|${rhoVal.toFixed(2)}|${betaVal.toFixed(3)}|${sampleCount}`;
+
+  let cached = odeTrajectoryCache.get(cacheKey);
+  if (!cached) {
+    const dt = isHalvorsen ? 0.0042 : 0.0068;
+    const seed = isHalvorsen ? [-1.48, -1.51, 2.04] : [-6.8, -8.2, 24.5];
+    const deriv = isHalvorsen
+      ? halvorsenDerivative(aVal)
+      : lorenzDerivative(sigmaVal, rhoVal, betaVal);
+
+    let state = [...seed];
+    const warmup = isHalvorsen ? 520 : 900;
+
+    for (let i = 0; i < warmup; i++) {
+      const step = rk4Step(state, dt, deriv);
+      if (!Number.isFinite(step.next[0]) || Math.hypot(...step.next) > 220) {
+        state = [...seed];
+      } else {
+        state = step.next;
+      }
+    }
+
+    const points = new Float32Array(sampleCount * 3);
+    const speeds = new Float32Array(sampleCount);
+    const rawStates = new Float32Array(sampleCount * 3);
+    const rawDerivs = new Float32Array(sampleCount * 3);
+    const scale = isHalvorsen ? 1 / 8.8 : 1 / 21.0;
+    const zOffset = isHalvorsen ? 0 : -24.8;
+    const maxSpeedRef = isHalvorsen ? 46 : 84;
+
+    for (let i = 0; i < sampleCount; i++) {
+      const step = rk4Step(state, dt, deriv);
+      if (!Number.isFinite(step.next[0]) || Math.hypot(...step.next) > 220) {
+        state = [...seed];
+      } else {
+        state = step.next;
+      }
+
+      const i3 = i * 3;
+      points[i3] = state[0] * scale;
+      points[i3 + 1] = (state[2] + zOffset) * scale;
+      points[i3 + 2] = state[1] * scale;
+      speeds[i] = clamp(step.speed / maxSpeedRef, 0.06, 1);
+
+      rawStates[i3] = state[0];
+      rawStates[i3 + 1] = state[1];
+      rawStates[i3 + 2] = state[2];
+      rawDerivs[i3] = step.derivative[0];
+      rawDerivs[i3 + 1] = step.derivative[1];
+      rawDerivs[i3 + 2] = step.derivative[2];
+    }
+
+    cached = {
+      points,
+      speeds,
+      rawStates,
+      rawDerivs,
+      polylines: [{ start: 0, count: sampleCount, closed: false }],
+    };
+    if (odeTrajectoryCache.size > 12) {
+      odeTrajectoryCache.clear();
+    }
+    odeTrajectoryCache.set(cacheKey, cached);
+  }
+
+  const phaseOffset = (timeSec * 0.085) % 1;
+  const h0 = Math.floor(((phaseOffset + 0.0) % 1) * sampleCount);
+  const h1 = Math.floor(((phaseOffset + 0.34) % 1) * sampleCount);
+  const h2 = Math.floor(((phaseOffset + 0.68) % 1) * sampleCount);
+  const p3 = h0 * 3;
+
+  return {
+    points: cached.points,
+    speeds: cached.speeds,
+    polylines: cached.polylines,
+    headIndices: [h0, h1, h2],
+    stateSample: [cached.rawStates[p3], cached.rawStates[p3 + 1], cached.rawStates[p3 + 2]],
+    derivativeSample: [cached.rawDerivs[p3], cached.rawDerivs[p3 + 1], cached.rawDerivs[p3 + 2]],
+  };
+}
