@@ -420,4 +420,47 @@ export class MathCanvasRenderer {
 
     ctx.restore();
   }
+
+  drawTracerHeads(ctx, headIndices, theme) {
+    if (!headIndices || headIndices.length === 0) {
+      return;
+    }
+    ctx.save();
+    for (const idx of headIndices) {
+      if (idx < 0 || idx >= this.projVis.length || !this.projVis[idx]) {
+        continue;
+      }
+      const x = this.projX[idx];
+      const y = this.projY[idx];
+
+      ctx.fillStyle = theme.headHalo;
+      ctx.beginPath();
+      ctx.arc(x, y, 7.2, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = theme.headCore;
+      ctx.beginPath();
+      ctx.arc(x, y, 2.7, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  drawWavePulses(ctx, timeSec, theme) {
+    if (this.pulses.length === 0) {
+      return;
+    }
+    ctx.save();
+    ctx.lineWidth = 1.4;
+    for (const pulse of this.pulses) {
+      const ageNorm = clamp((timeSec - pulse.birthSec) / PULSE_LIFETIME_SEC, 0, 1);
+      const radius = Math.max(4, ageNorm * pulse.maxRadius);
+      const alpha = (1 - ageNorm) * 0.58;
+      ctx.strokeStyle = `${theme.pulseRing}${alpha.toFixed(3)})`;
+      ctx.beginPath();
+      ctx.arc(pulse.x, pulse.y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
 }
