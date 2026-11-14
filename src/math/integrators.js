@@ -362,3 +362,20 @@ function sampleMobiusSurface(rawParams, timeSec) {
     derivativeSample,
   };
 }
+
+/**
+ * Computes 3D points, speed intensities, polyline groups, and live telemetry
+ * for the selected mathematical model.
+ */
+export function sampleMathScene(modelId, params = {}, timeSec = 0, odeSampleCount = 2600) {
+  if (modelId === 'lorenz' || modelId === 'halvorsen') {
+    return sampleOdeTrajectory(modelId, params, timeSec, odeSampleCount);
+  }
+  if (modelId === 'torusKnot') {
+    return sampleTorusKnot(params, timeSec);
+  }
+  if (modelId === 'mobius') {
+    return sampleMobiusSurface(params, timeSec);
+  }
+  return sampleOdeTrajectory('lorenz', params, timeSec, odeSampleCount);
+}
