@@ -1,12 +1,30 @@
 /**
- * Pure 3D/4D generative mathematical geometry for full-bleed Canvas 2D rendering.
- * Generates bounded spectral ribbons, topological curves, and 4D->3D projections.
+ * Pure 3D/4D generative mathematical geometry for Canvas 2D rendering.
+ * Supports bounded real-time harmonic frequency and amplitude modulation.
  */
 
 const TAU = Math.PI * 2;
 
 export function clamp(val, min, max) {
   return val < min ? min : val > max ? max : val;
+}
+
+export const DEFAULT_ART_PARAMS = Object.freeze({
+  freq: 1.0,
+  amp: 1.0,
+});
+
+/**
+ * Safely clamps real-time control inputs to bounded physical intervals.
+ * @param {{ freq?: number, amp?: number }} [params]
+ */
+export function normalizeArtParams(params) {
+  const rawFreq = Number(params?.freq);
+  const rawAmp = Number(params?.amp);
+  return {
+    freq: Number.isFinite(rawFreq) ? clamp(rawFreq, 0.4, 2.4) : DEFAULT_ART_PARAMS.freq,
+    amp: Number.isFinite(rawAmp) ? clamp(rawAmp, 0.35, 1.65) : DEFAULT_ART_PARAMS.amp,
+  };
 }
 
 /**
@@ -41,7 +59,6 @@ export const ART_PRESETS = Object.freeze({
 
 /**
  * Computes pure optical prism RGB color from normalized wavelength t in [0, 1].
- * Avoids muddy midtones by stepping smoothly along vivid spectral harmonics.
  *
  * @param {number} t
  * @param {number} [alpha]
@@ -55,10 +72,9 @@ export function spectralRgba(t, alpha = 1) {
 }
 
 /**
- * Sculptural 3D Fourier dispersion ribbon sheet:
- * 26 continuous contour splines deformed by coupled harmonic phase.
+ * Sculptural 3D Fourier dispersion ribbon sheet: 26 splines x 84 vertices.
  */
-function buildWaveScene(timeSec) {
+function buildWaveScene(timeSec, { freq, amp }) {
   const strandCount = 26;
   const steps = 84;
   const totalVerts = strandCount * steps;
@@ -76,10 +92,11 @@ function buildWaveScene(timeSec) {
       const x = (u - 0.5) * 2.95;
       const env = 0.65 + 0.35 * Math.cos(u * Math.PI - Math.PI * 0.5);
       const y =
+        amp *
         env *
-        (0.38 * Math.sin(2.4 * x + timeSec * 0.95 + z * 1.45) +
-          0.18 * Math.cos(4.2 * z - timeSec * 0.72 + x) +
-          0.09 * Math.sin(6.5 * x - timeSec * 1.3));
+        (0.38 * Math.sin(2.4 * freq * x + timeSec * 0.95 + z * 1.45) +
+          0.18 * Math.cos(4.2 * z - timeSec * 0.72 + x * freq) +
+          0.09 * Math.sin(6.5 * freq * x - timeSec * 1.3));
 
       const idx = start + col;
       const i3 = idx * 3;
@@ -92,7 +109,6 @@ function buildWaveScene(timeSec) {
     polylines.push({ start, count: steps, closed: false });
   }
 
-  // Harmonic nodal highlight points along crest filaments
   const nodeIndices = [
     steps * 6 + Math.floor((timeSec * 22) % steps),
     steps * 13 + Math.floor((timeSec * 22 + 28) % steps),
@@ -103,9 +119,9 @@ function buildWaveScene(timeSec) {
 }
 
 /**
- * 3D Coupled Hypotrochoid / Spirograph interference manifold.
+ * 3D Coupled Hypotrochoid / Spirograph interference manifold: 9 rings x 220 steps.
  */
-function buildSpiroScene(timeSec) {
+function buildSpiroScene(timeSec, { freq, amp }) {
   const rings = 9;
   const steps = 220;
   const totalVerts = rings * steps;
@@ -120,10 +136,10 @@ function buildSpiroScene(timeSec) {
     const tilt = (ratio - 0.5) * 1.15 + Math.sin(timeSec * 0.3 + ratio * 2) * 0.25;
     const ct = Math.cos(tilt);
     const st = Math.sin(tilt);
-    const major = 0.85 + 0.14 * Math.sin(ratio * Math.PI);
-    const minor = 0.28;
+    const major = (0.78 + 0.14 * Math.sin(ratio * Math.PI)) * clamp(amp * 0.5 + 0.5, 0.65, 1.35);
+    const minor = 0.26 * amp;
     const p = 3;
-    const q = 7;
+    const q = Math.max(3, Math.round(7 * freq));
 
     for (let i = 0; i < steps; i++) {
       const t = (i / steps) * TAU;
@@ -153,22 +169,20 @@ function buildSpiroScene(timeSec) {
 }
 
 /**
- * 4D Hypercube (Tesseract) rotated in XW & ZW planes and stereographically
- * projected R^4 -> R^3, paired with an enclosing Clifford meridian torus.
+ * 4D Hypercube (Tesseract) rotated in XW & ZW planes projected R^4 -> R^3 + meridian rings.
  */
-function buildTesseractScene(timeSec) {
-  // 16 vertices of 4D hypercube in {-1, +1}^4
+function buildTesseractScene(timeSec, { freq, amp }) {
+  const half = 0.66 * clamp(0.65 + amp * 0.35, 0.72, 1.24);
   const verts4 = [];
   for (let mask = 0; mask < 16; mask++) {
     verts4.push([
-      mask & 1 ? 0.72 : -0.72,
-      mask & 2 ? 0.72 : -0.72,
-      mask & 4 ? 0.72 : -0.72,
-      mask & 8 ? 0.72 : -0.72,
+      mask & 1 ? half : -half,
+      mask & 2 ? half : -half,
+      mask & 4 ? half : -half,
+      mask & 8 ? half : -half,
     ]);
   }
 
-  // 32 tesseract edges (pairs differing by 1 bit)
   const edges = [];
   for (let a = 0; a < 16; a++) {
     for (let bit = 0; bit < 4; bit++) {
@@ -180,23 +194,21 @@ function buildTesseractScene(timeSec) {
   }
 
   const a1 = timeSec * 0.58;
-  const a2 = timeSec * 0.39;
+  const a2 = timeSec * 0.39 * freq;
   const c1 = Math.cos(a1);
   const s1 = Math.sin(a1);
   const c2 = Math.cos(a2);
   const s2 = Math.sin(a2);
 
   const verts3 = verts4.map(([x, y, z, w]) => {
-    // Rotate XW then ZW
     const x1 = x * c1 - w * s1;
     const w1 = x * s1 + w * c1;
     const z1 = z * c2 - w1 * s2;
     const w2 = z * s2 + w1 * c2;
-    const persp = 2.05 / (2.35 - w2);
+    const persp = 2.02 / (2.45 - w2);
     return [x1 * persp, y * persp, z1 * persp];
   });
 
-  // Pack edges + 2 nested equatorial harmonic rings for depth framing
   const ringSteps = 96;
   const totalVerts = edges.length * 2 + ringSteps * 2;
   const points = new Float32Array(totalVerts * 3);
@@ -227,7 +239,7 @@ function buildTesseractScene(timeSec) {
 
   for (let ring = 0; ring < 2; ring++) {
     const start = cursor;
-    const rad = ring === 0 ? 1.48 : 1.18;
+    const rad = (ring === 0 ? 1.44 : 1.15) * clamp(0.85 + amp * 0.15, 0.85, 1.15);
     const tilt = ring === 0 ? 0.35 : -0.62;
     const ct = Math.cos(tilt);
     const st = Math.sin(tilt);
@@ -235,7 +247,7 @@ function buildTesseractScene(timeSec) {
       const th = (i / ringSteps) * TAU + timeSec * (ring === 0 ? 0.25 : -0.32);
       const lx = Math.cos(th) * rad;
       const lz = Math.sin(th) * rad;
-      const ly = 0.07 * Math.sin(3 * th + timeSec);
+      const ly = 0.07 * amp * Math.sin(3 * freq * th + timeSec);
       const y = ly * ct - lz * st;
       const z = ly * st + lz * ct;
 
@@ -262,14 +274,16 @@ function buildTesseractScene(timeSec) {
  *
  * @param {string} presetId
  * @param {number} [timeSec]
+ * @param {{ freq?: number, amp?: number }} [params]
  */
-export function sampleMathArtScene(presetId, timeSec = 0) {
+export function sampleMathArtScene(presetId, timeSec = 0, params = DEFAULT_ART_PARAMS) {
   const t = Number.isFinite(timeSec) ? timeSec : 0;
+  const cleanParams = normalizeArtParams(params);
   if (presetId === 'spiro') {
-    return buildSpiroScene(t);
+    return buildSpiroScene(t, cleanParams);
   }
   if (presetId === 'tesseract') {
-    return buildTesseractScene(t);
+    return buildTesseractScene(t, cleanParams);
   }
-  return buildWaveScene(t);
+  return buildWaveScene(t, cleanParams);
 }
