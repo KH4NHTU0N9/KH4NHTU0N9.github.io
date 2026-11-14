@@ -1,19 +1,15 @@
-# KH4NHTU0N9.github.io · Mathematical Observatory
+# KH4NHTU0N9.github.io
 
-Interactive GitHub Pages user site (`https://kh4nhtu0n9.github.io/`) built with **zero dependencies** (pure HTML, CSS, and ES Modules) pairing a real-time **3D Mathematical Canvas 2D Engine** with the verified developer profile of `@KH4NHTU0N9`.
+Personal developer profile (`https://kh4nhtu0n9.github.io/`) built with **zero dependencies** (pure HTML, CSS, and ES Modules), combining a curated engineering portfolio with interactive real-time **3D generative mathematics** on Canvas 2D.
 
-## Features
+## Highlights
 
-- **4 Real-Time 3D Mathematical Models:**
-  - `Lorenz Attractor` (4th-order Runge-Kutta numerical integration with live $\sigma, \rho, \beta$ sliders)
-  - `Halvorsen Attractor` (symmetric chaotic attractor with tunable cyclic coupling parameter $a$)
-  - `Harmonic Torus Knot` (parametric $(p, q)$ closed manifold with dynamic radius modulation)
-  - `Möbius Phase Surface` (ruled wire-grid non-orientable surface with adjustable half-twists)
-- **Interactive Canvas 2D Oscilloscope:**
-  - Drag to orbit (`yaw`, `pitch`), scroll or pinch to zoom, hover to deflect local vertices, click to emit harmonic wave rings, double-click (`R`) to reset camera, press `H` for Fullscreen Zen mode, or `1`–`4` to switch models.
-  - 3 high-contrast observatory themes (`Quantum Cyan`, `Solar Plasma`, `CRT Phosphor`) with quantized color lookup tables and Retina DPR scaling (`<= 2x`).
-- **Safe Profile & GitHub Hydration:**
-  - Domain-filtered engineering stack (`Embedded & Flight`, `Security & Forensics`, `Systems, Data & Cloud`), verified repository showcase, and safe `https:`/`mailto:` URL allowlist checks.
+- **Generative Hero Backdrop (`src/math/mathArt.js`, `src/math/renderer.js`):**
+  - Switchable live 3D visual presets directly from the hero bar: **Fibonacci Orbit** (golden-angle spherical lattice + gyroscopic orbital rings), **Fourier Aurora** (multi-harmonic interference ribbons), and **Harmonic Torus** (coupled `(p, q)` toroidal braids).
+  - Three synchronized spectral palettes (`Aurora Prism`, `Cyber Neon`, `Solar Flare`), drag-to-orbit, click harmonic ripples, cursor magnetic deflection, and `H` for fullscreen art focus.
+- **Tech-First Bento Showcase (`src/ui/profileView.js`, `src/data/profile.js`):**
+  - Spotlight-reactive domain bento cards (`Embedded & Flight`, `Security & Forensics`, `Systems, Data & Cloud`) across 39 tools.
+  - Non-blocking GitHub REST API repository hydration with safe `https:` / `mailto:` URL allowlist checks and verified offline fallback.
 
 ## Local Development & Verification
 
@@ -22,14 +18,10 @@ Interactive GitHub Pages user site (`https://kh4nhtu0n9.github.io/`) built with 
 node --test tests/*.test.mjs
 
 # Preview statically with Python HTTP server
-python3 -m http.server 4173
+python3 -m http.server 4173 --bind 127.0.0.1
 ```
-
-Open `http://127.0.0.1:4173/` in any modern browser.
 
 ## References
 
 1. [GitHub Docs — What is GitHub Pages?](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages)
 2. [MDN Web Docs — CanvasRenderingContext2D](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D)
-3. [Edward N. Lorenz (1963) — Deterministic Nonperiodic Flow](https://journals.ametsoc.org/view/journals/atsc/20/2/1520-0469_1963_020_0130_dnf_2_0_co_2.xml)
-4. [Press et al., Numerical Recipes — Runge-Kutta Method](https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods)

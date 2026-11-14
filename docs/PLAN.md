@@ -1,53 +1,36 @@
 # KH4NHTU0N9.github.io — Project Execution Plan (5 Phases)
 
 ## Phase 1: Initiation (Khởi tạo)
-- **Mục tiêu:** Xây dựng trang Profile cá nhân (`https://kh4nhtu0n9.github.io/`) kết hợp **3D Mathematical Visualization Engine** chạy thời gian thực trên HTML5 Canvas 2D (Zero-dependency, pure HTML/CSS/ES Modules).
+- **Mục tiêu:** Xây dựng trang Profile cá nhân (`https://kh4nhtu0n9.github.io/`) mang phong cách **Tech · Sáng tạo · Rực rỡ**, đặt phần giới thiệu & năng lực kỹ thuật làm trung tâm và dùng toán học đồ họa 3D thuần ES Modules làm nền động tương tác trên HTML5 Canvas 2D.
 - **Phạm vi (In-scope):**
-  - Bộ giải tích số RK4 (4th-order Runge-Kutta) và bộ sinh mặt/đường cong tham số (`Lorenz Attractor`, `Halvorsen Attractor`, `Torus Knot`, `Möbius Phase Ribbon`).
-  - Hệ chiếu phối cảnh 3D tương tác (kéo xoay Orbit, cuộn Zoom, hover tạo nhiễu trường vector, bấm tạo sóng tròn).
-  - Giao diện Profile thực tế của `@KH4NHTU0N9` (`Embedded & Robotics`, `Security & Forensics`, `Software & Infra`) kèm danh sách repo nổi bật và live GitHub API hydration an toàn.
-  - Bảng điều khiển phương trình trực tiếp (chỉnh tham số $\sigma, \rho, \beta, a, p, q$, đổi bảng màu oscilloscope, chế độ Zen `H`).
-- **Ngoài phạm vi (Out-of-scope):** Build toolchain nặng (Webpack/Vite/React), backend server riêng, hiệu ứng lạm dụng GPU gây lag cuộn trang.
+  - Hệ sinh hình học toán tương tác thời gian thực (`Fibonacci Orbit`, `Fourier Aurora`, `Harmonic Torus`) chạy mượt 60fps không dùng thư viện ngoài.
+  - 3 bảng màu quang phổ (`Aurora Prism`, `Cyber Neon`, `Solar Flare`) đồng bộ trực tiếp giữa Canvas 2D và CSS accent tokens (`[data-aura]`).
+  - Hero Profile Card xác thực của `@KH4NHTU0N9`, 3 Bento Cards theo lĩnh vực (`Embedded & Flight`, `Security & Forensics`, `Systems, Data & Cloud`) và 6 dự án GitHub nổi bật (hydration live + snapshot dự phòng an toàn XSS).
+- **Ngoài phạm vi (Out-of-scope):** Giao diện giải phương trình vi phân kiểu bài tập (`dx/dt`, sliders $\sigma,\rho,\beta$), backend riêng, build bundler nặng.
 - **Tài liệu tham khảo:**
   - [GitHub Docs — What is GitHub Pages?](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages)
   - [MDN Web Docs — CanvasRenderingContext2D](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D)
-  - [Edward N. Lorenz (1963) — Deterministic Nonperiodic Flow (AMS)](https://journals.ametsoc.org/view/journals/atsc/20/2/1520-0469_1963_020_0130_dnf_2_0_co_2.xml)
 
 ## Phase 2: Planning (Lập kế hoạch)
 - **Kiến trúc hệ thống:**
-  - `src/math/integrators.js`: RK4 ODE steppers & parametric curve/surface generators (`lorenz`, `halvorsen`, `torusKnot`, `mobius`).
-  - `src/math/projection3d.js`: Camera yaw/pitch/zoom transform, coordinate axes, depth mapping.
-  - `src/math/renderer.js`: Retina 2D Canvas oscilloscope/phase-space renderer với trail glow, tracer heads và interactive pointer ripple.
-  - `src/data/profile.js`: Dữ liệu Profile & Tech Stack đã xác thực từ GitHub (`KH4NHTU0N9`).
-  - `src/ui/equationPanel.js` & `src/ui/profileView.js`: Điều khiển công thức live, domain filtering, safe DOM rendering.
-- **Quản lý rủi ro (Risk Management):**
-  - *Bùng nổ số học RK4 khi đổi tham số lớn:* Giới hạn miền slider an toàn và kẹp biên bước tích phân / phát hiện diverged state tự reset quỹ đạo.
-  - *GitHub REST API rate-limit (`60 req/h`):* Dùng snapshot verified trong `src/data/profile.js` làm mặc định và chỉ cập nhật bổ sung khi API trả `HTTP 200` hợp lệ.
-  - *Chống XSS:* Toàn bộ text/link đi qua DOM `textContent` và bộ kiểm tra URL allowlist `https:`/`mailto:`.
-- **Lộ trình (Milestones):**
-  - M1: Core Math Engine + Node.js unit tests.
-  - M2: Interactive Canvas 3D Oscilloscope & Equation Controls.
-  - M3: Profile Portfolio UI + Responsive CSS & Accessibility.
-  - M4: End-to-End Headless Chrome Visual & Runtime Audit + Docs.
+  - `src/math/mathArt.js`: Bộ sinh tọa độ 3D (`constellation`, `aurora`, `torus`) với kiểm biên hữu hạn.
+  - `src/math/projection3d.js`: Chiếu phối cảnh 3D có dịch tâm linh hoạt cho bố cục Hero Desktop (lệch phải tránh che chữ) & Mobile/Zen (căn giữa).
+  - `src/math/renderer.js`: Renderer Retina Canvas 2D tối ưu LUT màu quang phổ, trường hạt sao lấp lánh, nhiễu trường con trỏ và sóng gợn.
+  - `src/data/profile.js` & `src/ui/profileView.js`: Dữ liệu xác thực `@KH4NHTU0N9`, Bento spotlight cards và kiểm tra URL allowlist `https:`/`mailto:`.
+  - `src/main.js`, `index.html`, `styles/main.css`: Điều khiển kéo xoay 3D, dock chọn style tối giản và chế độ Focus Art (`H`).
 
 ## Phase 3: Execution (Thực thi)
 ### Task Tracker
-- [x] Khởi tạo repo & tài liệu kế hoạch `docs/PLAN.md`
-- [x] `src/math/integrators.js` + unit tests (`tests/integrators.test.mjs`)
-- [x] `src/math/projection3d.js` + unit tests (`tests/projection3d.test.mjs`)
-- [x] `src/math/renderer.js`
-- [x] `src/data/profile.js` + `tests/profileData.test.mjs`
-- [x] `src/ui/equationPanel.js`, `src/ui/profileView.js`, `src/main.js`
-- [x] `index.html`, `styles/main.css`, `README.md`
+- [x] Khởi tạo & thiết kế lại theo hướng Creative Tech Profile (`mathArt.js`, `renderer.js`, `projection3d.js`)
+- [x] Hero Identity + Bento Domains + Spotlight Repo Showcase (`profile.js`, `profileView.js`, `main.js`)
+- [x] Bảng màu quang phổ đồng bộ `Aurora Prism` / `Cyber Neon` / `Solar Flare` (`index.html`, `styles/main.css`)
+- [x] Cập nhật bộ test đơn vị (`tests/mathArt.test.mjs`, `tests/projection3d.test.mjs`, `tests/profileData.test.mjs`)
 
 ### DevLog
-- **Init:** Tạo cấu trúc `KH4NHTU0N9.github.io` thuần ES Modules không dependency, tối ưu cho GitHub Pages User Site.
-- **M1–M3 Built:** Hoàn thiện lõi tích phân RK4 (`lorenz`, `halvorsen`, `torusKnot`, `mobius`), bộ chiếu phối cảnh 3D, Canvas 2D oscilloscope với LUT màu, dữ liệu hồ sơ xác thực `@KH4NHTU0N9` và UI đáp ứng Desktop/Mobile.
-- **M4 Verified & Polished:** Khắc phục nút `[hidden]` Zen ngoài fullscreen, sửa điểm khởi tạo + cache quỹ đạo RK4 giúp Lorenz tạo đủ hai cánh bướm đối xứng 60fps, mở rộng cột telemetry & nút mobile hết cắt chữ; kiểm chứng trực quan Desktop (`1440×900`) & Mobile (`390×844`) với `0` lỗi console.
+- **Redesign Pivot:** Loại bỏ hộp công thức Lorenz/sliders mang cảm giác thí nghiệm sách giáo khoa theo góp ý thực tế từ người dùng; đưa phần giới thiệu `@KH4NHTU0N9` lên vị trí Hero trung tâm phủ trên canvas toán đồ họa 3D rực rỡ.
 
 ## Phase 4: Monitoring (Giám sát)
-- [x] `node --test tests/*.test.mjs`: 10/10 tests pass (`integrators.test.mjs`, `profileData.test.mjs`, `projection3d.test.mjs`).
-- [x] Headless Chrome audit (`1440×900` Desktop & `390×844` Mobile): `0` console error, `0` uncaught exception, `scrollWidth <= innerWidth` trên cả Desktop & Mobile, Zen mode, chuyển 4 mô hình toán và live GitHub API hydration hoạt động chuẩn.
+- Chạy `node --test tests/*.test.mjs` và kiểm thử trực quan Headless Chrome trên cả Desktop (`1440×900`) & Mobile (`390×844`) với `0` console error và không tràn ngang.
 
 ## Phase 5: Closure (Đóng dự án)
-- [x] Hoàn tất commit nguyên tử sạch sẽ và bàn giao hướng dẫn tạo repo `KH4NHTU0N9.github.io` trên GitHub, đẩy nhánh `main` để kích hoạt `https://kh4nhtu0n9.github.io/`.
+- Commit sạch, đẩy lên nhánh `main` của `KH4NHTU0N9/KH4NHTU0N9.github.io` và xác nhận build GitHub Pages.
