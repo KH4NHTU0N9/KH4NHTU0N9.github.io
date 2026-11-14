@@ -1,11 +1,46 @@
-import { ART_PRESETS, DEFAULT_ART_PARAMS, clamp } from './math/mathArt.js';
-import { createCameraState } from './math/projection3d.js';
-import { MathCanvasRenderer } from './math/renderer.js';
-import { OscilloscopeRenderer } from './math/scopeRenderer.js';
-import { PROFILE_DATA, fetchPublicReposWithFallback } from './data/profile.js';
-import { ProfileView } from './ui/profileView.js';
+import { ART_PRESETS, DEFAULT_ART_PARAMS, clamp } from './math/mathArt.js?v=gcs22';
+import { createCameraState } from './math/projection3d.js?v=gcs22';
+import { MathCanvasRenderer } from './math/renderer.js?v=gcs22';
+import { OscilloscopeRenderer } from './math/scopeRenderer.js?v=gcs22';
+import { PROFILE_DATA, fetchPublicReposWithFallback } from './data/profile.js?v=gcs22';
+import { ProfileView } from './ui/profileView.js?v=gcs22';
 
 const PRESET_ORDER = Object.keys(ART_PRESETS);
+
+function hasOwnPreset(presetId) {
+  return Object.prototype.hasOwnProperty.call(ART_PRESETS, presetId);
+}
+
+function renderBootRecovery(message) {
+  const host = document.getElementById('hero-content') || document.body;
+  if (!host) {
+    return;
+  }
+  const box = document.createElement('div');
+  box.className = 'boot-warning-panel';
+  box.setAttribute('role', 'alert');
+
+  const title = document.createElement('strong');
+  title.className = 'boot-warning-panel__title';
+  title.textContent = 'SYSTEM_SYNC // RECOVERY MODE';
+
+  const desc = document.createElement('p');
+  desc.className = 'boot-warning-panel__msg';
+  desc.textContent = message || 'Interactive viewport failed to initialize (likely stale browser cache).';
+
+  const reloadBtn = document.createElement('button');
+  reloadBtn.type = 'button';
+  reloadBtn.className = 'boot-reload-btn';
+  reloadBtn.textContent = 'HARD RELOAD LATEST BUILD ↻';
+  reloadBtn.addEventListener('click', () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('sync', String(Date.now()));
+    window.location.replace(url.toString());
+  });
+
+  box.append(title, desc, reloadBtn);
+  host.appendChild(box);
+}
 
 function formatWrappedDeg(rad) {
   let deg = (rad * 180) / Math.PI;
@@ -80,7 +115,13 @@ function initApp() {
   const footerRoot = document.getElementById('site-footer');
   const zenExitBtn = document.getElementById('zen-exit-btn');
 
-  if (!appShell || !canvas || !canvasStage || !navRoot || !consoleRoot || !sectionsRoot || !footerRoot) {
+  if (!appShell || !navRoot || !consoleRoot || !sectionsRoot || !footerRoot) {
+    renderBootRecovery('Cockpit mount nodes missing due to stale cached HTML.');
+    return;
+  }
+  const interactionStage = canvasStage || canvas;
+  if (!canvas || !interactionStage) {
+    renderBootRecovery('WebCanvas element missing from cached document.');
     return;
   }
 
@@ -163,8 +204,46 @@ function initApp() {
     syncTelemetry(forceTelemetry);
   }
 
+  const activePointers = new Map();
+  let dragMovedPx = 0;
+
+  let rafId = null;
+  let lastFrameMs = performance.now();
+
+  const tick = (nowMs) => {
+    rafId = null;
+    if (state.paused) {
+      return;
+    }
+    const dtSec = Math.min(0.05, Math.max(0.001, (nowMs - lastFrameMs) / 1000));
+    lastFrameMs = nowMs;
+
+    const rate = state.params.speed;
+    state.simTimeSec += dtSec * rate;
+    if (activePointers.size === 0 && !reducedMotionQuery?.matches && rate > 0) {
+      state.camera.yawRad += dtSec * 0.22 * rate;
+    }
+    renderFrameNow();
+    scheduleNextTick();
+  };
+
+  function scheduleNextTick() {
+    if (state.paused || rafId !== null) {
+      return;
+    }
+    lastFrameMs = performance.now();
+    rafId = requestAnimationFrame(tick);
+  }
+
+  function stopAnimationLoop() {
+    if (rafId !== null) {
+      cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+  }
+
   function switchPreset(presetId) {
-    if (!Object.hasOwn(ART_PRESETS, presetId)) {
+    if (!hasOwnPreset(presetId)) {
       return;
     }
     state.presetId = presetId;
@@ -176,6 +255,11 @@ function initApp() {
     state.paused = !state.paused;
     nav.sync(state);
     syncTelemetry(true);
+    if (state.paused) {
+      stopAnimationLoop();
+    } else {
+      scheduleNextTick();
+    }
   }
 
   function resetAll() {
@@ -201,10 +285,15 @@ function initApp() {
   }
 
   // Orbit & ripple inside the dedicated CAD viewport stage
-  const activePointers = new Map();
-  let dragMovedPx = 0;
 
-  canvasStage.addEventListener('pointerdown', (ev) => {
+  const clearPointers = () => {
+    if (activePointers.size > 0) {
+      activePointers.clear();
+    }
+    document.body.classList.remove('is-orbiting');
+  };
+
+  interactionStage.addEventListener('pointerdown', (ev) => {
     activePointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
     dragMovedPx = 0;
     document.body.classList.add('is-orbiting');
@@ -240,11 +329,14 @@ function initApp() {
 
   window.addEventListener('pointerup', endPointer);
   window.addEventListener('pointercancel', endPointer);
-  canvasStage.addEventListener('mouseleave', () => {
+  window.addEventListener('blur', clearPointers);
+  interactionStage.addEventListener('lostpointercapture', clearPointers);
+  interactionStage.addEventListener('contextmenu', clearPointers);
+  interactionStage.addEventListener('mouseleave', () => {
     renderer.setPointerPosition(0, 0, false);
   });
 
-  canvasStage.addEventListener('dblclick', () => {
+  interactionStage.addEventListener('dblclick', () => {
     resetAll();
   });
 
@@ -273,32 +365,25 @@ function initApp() {
     }
   });
 
-  window.addEventListener('resize', () => {
+  const handleViewportResize = () => {
     renderer.resize();
     scopeRenderer?.resize();
     renderFrameNow();
-  });
-
-  let lastFrameMs = performance.now();
-  const tick = (nowMs) => {
-    const dtSec = Math.min(0.05, Math.max(0.001, (nowMs - lastFrameMs) / 1000));
-    lastFrameMs = nowMs;
-
-    if (!state.paused) {
-      const rate = state.params.speed;
-      state.simTimeSec += dtSec * rate;
-      if (activePointers.size === 0 && !reducedMotionQuery?.matches && rate > 0) {
-        state.camera.yawRad += dtSec * 0.22 * rate;
-      }
-      renderFrameNow();
-    }
-    requestAnimationFrame(tick);
   };
+
+  window.addEventListener('resize', handleViewportResize);
+  if (typeof ResizeObserver === 'function') {
+    const ro = new ResizeObserver(handleViewportResize);
+    ro.observe(interactionStage);
+    if (scopeCanvas) {
+      ro.observe(scopeCanvas);
+    }
+  }
 
   renderer.resize();
   scopeRenderer?.resize();
   renderFrameNow(true);
-  requestAnimationFrame(tick);
+  scheduleNextTick();
 
   fetchPublicReposWithFallback(PROFILE_DATA.login, { limit: 6 }).then(({ repos, source }) => {
     if (source === 'live') {
@@ -307,8 +392,18 @@ function initApp() {
   });
 }
 
+function safeBoot() {
+  try {
+    initApp();
+  } catch (err) {
+    renderBootRecovery(
+      `Initialization fault: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+}
+
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initApp, { once: true });
+  document.addEventListener('DOMContentLoaded', safeBoot, { once: true });
 } else {
-  initApp();
+  safeBoot();
 }

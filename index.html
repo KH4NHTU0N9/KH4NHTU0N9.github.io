@@ -13,7 +13,7 @@
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23040507'/%3E%3Crect x='10' y='10' width='44' height='44' fill='none' stroke='%23f5f5f2' stroke-width='2.5'/%3E%3Cline x1='10' y1='32' x2='54' y2='32' stroke='%23ff4d00' stroke-width='2.5'/%3E%3C/svg%3E"
     />
-    <link rel="stylesheet" href="./styles/main.css" />
+    <link rel="stylesheet" href="./styles/main.css?v=gcs22" />
   </head>
   <body>
     <div id="app-shell" class="app-shell">
@@ -32,7 +32,32 @@
 
       <main class="cockpit-main">
         <div class="cockpit-deck">
-          <section id="hero-content" class="cockpit-console" aria-label="Operator console and oscilloscope"></section>
+          <section id="hero-content" class="cockpit-console" aria-label="Operator console and oscilloscope">
+            <div class="pane-header">
+              <span class="pane-title">UNIT_01 // OPERATOR &amp; SIGNAL_SCOPE</span>
+              <span class="pane-tag">BOOTING</span>
+            </div>
+            <div class="console-body">
+              <div class="hero-id-strip">
+                <div class="hero-meta-stack">
+                  <span class="hero-handle">CALLSIGN // @KH4NHTU0N9 · HE/HIM</span>
+                  <span class="hero-disciplines">EMBEDDED · SECURITY · SYSTEMS DEVELOPER</span>
+                </div>
+              </div>
+              <h1 class="hero-display-name">trankhanhtuong</h1>
+              <p class="hero-statement">
+                i'm fascinating in coding some tools which can help world look supercalifragilisticexpialidocious
+              </p>
+              <nav class="hero-links" aria-label="Primary links">
+                <a class="grid-link grid-link--primary" href="https://github.com/KH4NHTU0N9" target="_blank" rel="noopener noreferrer">GITHUB ↗</a>
+                <a class="grid-link" href="https://t.me/KH4NHTU0NG" target="_blank" rel="noopener noreferrer">TELEGRAM ↗</a>
+                <a class="grid-link" href="mailto:khanhtuong2302@gmail.com">EMAIL ↗</a>
+              </nav>
+              <noscript>
+                <p class="boot-warning">JavaScript is disabled. Enable JS to run interactive 3D/4D WebCanvas &amp; oscilloscope telemetry.</p>
+              </noscript>
+            </div>
+          </section>
 
           <section id="viewport-pane" class="cockpit-viewport" aria-label="3D and 4D CAD viewport">
             <div class="pane-header viewport-header">
@@ -59,6 +84,6 @@
       <footer id="site-footer" class="colophon-bar"></footer>
     </div>
 
-    <script type="module" src="./src/main.js"></script>
+    <script type="module" src="./src/main.js?v=gcs22"></script>
   </body>
 </html>
