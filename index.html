@@ -1,44 +1,39 @@
 <!doctype html>
-<html lang="en" data-aura="aurora">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#04060f" />
+    <meta name="theme-color" content="#050505" />
     <meta
       name="description"
-      content="KH4NHTU0N9 (trankhanhtuong) — Embedded, Security & Systems Developer Profile powered by Interactive Web Mathematics."
+      content="trankhanhtuong (@KH4NHTU0N9) — Embedded, Security & Systems Developer."
     />
     <title>trankhanhtuong · @KH4NHTU0N9</title>
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23050814'/%3E%3Cellipse cx='32' cy='32' rx='22' ry='11' transform='rotate(-28 32 32)' fill='none' stroke='%2322d3ee' stroke-width='3'/%3E%3Cellipse cx='32' cy='32' rx='22' ry='11' transform='rotate(28 32 32)' fill='none' stroke='%23f472b6' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='4.5' fill='%23ffffff'/%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23050505'/%3E%3Crect x='10' y='10' width='44' height='44' fill='none' stroke='%23f5f5f2' stroke-width='2.5'/%3E%3Cline x1='10' y1='32' x2='54' y2='32' stroke='%23ff4d00' stroke-width='2.5'/%3E%3C/svg%3E"
     />
     <link rel="stylesheet" href="./styles/main.css" />
   </head>
   <body>
+    <canvas id="math-canvas" aria-hidden="true"></canvas>
+
     <div id="app-shell" class="app-shell">
-      <main class="page-main">
-        <section id="hero-stage" class="hero-stage" aria-label="Developer Introduction & Generative Canvas">
-          <canvas id="math-canvas" aria-label="Interactive 3D generative geometry"></canvas>
-          <div class="hero-scrim" aria-hidden="true"></div>
+      <header class="top-bar">
+        <div class="top-bar__brand">KH4NHTU0N9 // INDEX</div>
+        <nav id="nav-controls" class="top-bar__controls" aria-label="Canvas visual mode"></nav>
+      </header>
 
-          <button id="zen-exit-btn" class="zen-exit-pill" type="button" hidden>
-            Back to Profile (H)
-          </button>
+      <button id="zen-exit-btn" class="zen-exit-btn" type="button" hidden>
+        RETURN TO INDEX [H]
+      </button>
 
-          <div id="hero-content" class="hero-content"></div>
-
-          <div class="hero-dock-wrap">
-            <div id="visual-dock" class="visual-dock" aria-label="Visual style switcher"></div>
-          </div>
-        </section>
-
-        <section id="profile-sections" class="profile-sections" aria-label="Tech stack and repositories"></section>
-
-        <footer class="site-footer">
-          <span class="footer-note">@KH4NHTU0N9 · Drawn with Pure Web Mathematics · Zero Dependencies</span>
-        </footer>
+      <main class="editorial-main">
+        <section id="hero-content" class="hero-section" aria-label="Introduction"></section>
+        <section id="profile-sections" class="sections-stack" aria-label="Engineering index and works"></section>
       </main>
+
+      <footer id="site-footer" class="colophon-bar"></footer>
     </div>
 
     <script type="module" src="./src/main.js"></script>
