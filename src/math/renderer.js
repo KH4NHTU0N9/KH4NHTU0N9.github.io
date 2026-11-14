@@ -258,4 +258,50 @@ export class MathCanvasRenderer {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
   }
+
+  drawCoordinateFrame(ctx, w, h, camera, theme) {
+    ctx.save();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = theme.gridStroke;
+
+    for (const ring of this.axesDesc.rings) {
+      ctx.beginPath();
+      let started = false;
+      for (const [rx, ry, rz] of ring) {
+        const p = projectPoint3D(rx, ry, rz, w, h, camera);
+        if (!p.visible) {
+          started = false;
+          continue;
+        }
+        if (!started) {
+          ctx.moveTo(p.sx, p.sy);
+          started = true;
+        } else {
+          ctx.lineTo(p.sx, p.sy);
+        }
+      }
+      ctx.stroke();
+    }
+
+    ctx.font = '600 11px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    for (const axis of this.axesDesc.axes) {
+      const pa = projectPoint3D(axis.a[0], axis.a[1], axis.a[2], w, h, camera);
+      const pb = projectPoint3D(axis.b[0], axis.b[1], axis.b[2], w, h, camera);
+      if (!pa.visible || !pb.visible) {
+        continue;
+      }
+      ctx.strokeStyle = axis.color;
+      ctx.beginPath();
+      ctx.moveTo(pa.sx, pa.sy);
+      ctx.lineTo(pb.sx, pb.sy);
+      ctx.stroke();
+
+      ctx.fillStyle = theme.axisLabel;
+      ctx.fillText(axis.label, pb.sx + 9, pb.sy - 6);
+    }
+    ctx.restore();
+  }
 }
