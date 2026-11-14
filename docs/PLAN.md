@@ -41,3 +41,11 @@
 - [x] `index.html`, `styles/main.css`, `README.md`
 
 ### DevLog
+- **Init:** Tạo cấu trúc `KH4NHTU0N9.github.io` thuần ES Modules không dependency, tối ưu cho GitHub Pages User Site.
+- **M1–M3 Built:** Hoàn thiện lõi tích phân RK4 (`lorenz`, `halvorsen`, `torusKnot`, `mobius`), bộ chiếu phối cảnh 3D, Canvas 2D oscilloscope với LUT màu, dữ liệu hồ sơ xác thực `@KH4NHTU0N9` và UI đáp ứng Desktop/Mobile.
+- **M4 Verified & Polished:** Khắc phục nút `[hidden]` Zen ngoài fullscreen, sửa điểm khởi tạo + cache quỹ đạo RK4 giúp Lorenz tạo đủ hai cánh bướm đối xứng 60fps, mở rộng cột telemetry & nút mobile hết cắt chữ; kiểm chứng trực quan Desktop (`1440×900`) & Mobile (`390×844`) với `0` lỗi console.
+
+## Phase 4: Monitoring (Giám sát)
+- [x] `node --test tests/*.test.mjs`: 10/10 tests pass (`integrators.test.mjs`, `profileData.test.mjs`, `projection3d.test.mjs`).
+- [x] Headless Chrome audit (`1440×900` Desktop & `390×844` Mobile): `0` console error, `0` uncaught exception, `scrollWidth <= innerWidth` trên cả Desktop & Mobile, Zen mode, chuyển 4 mô hình toán và live GitHub API hydration hoạt động chuẩn.
+
