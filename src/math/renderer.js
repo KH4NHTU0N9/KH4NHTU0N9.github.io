@@ -1,5 +1,5 @@
 import { clamp, sampleMathArtScene, spectralRgba } from './mathArt.js';
-import { projectPoint3D } from './projection3d.js';
+import { buildAxisDescriptors, projectPoint3D } from './projection3d.js';
 
 const LUT_SIZE = 48;
 const TAU = Math.PI * 2;
@@ -8,6 +8,7 @@ const POINTER_DEFLECT_STRENGTH_PX = 20;
 const PULSE_LIFETIME_SEC = 1.1;
 const MAX_ACTIVE_PULSES = 6;
 const MICRO_STARS = 44;
+const DATUM_STEP_PX = 72;
 
 const PRISM_CORE_LUT = Array.from({ length: LUT_SIZE }, (_, i) =>
   spectralRgba(i / LUT_SIZE, 0.92),
@@ -46,6 +47,7 @@ export class MathCanvasRenderer {
     this.pointer = { x: 0, y: 0, active: false };
     this.pulses = [];
     this.microField = buildMicroField();
+    this.axisDescriptors = buildAxisDescriptors(1.38);
 
     this.cap = 0;
     this.projX = new Float32Array(0);
@@ -119,6 +121,7 @@ export class MathCanvasRenderer {
     ctx.fillStyle = '#050505';
     ctx.fillRect(0, 0, w, h);
 
+    this.drawEngineeringDatum(ctx, w, h);
     this.drawMicroField(ctx, w, h, timeSec);
 
     const activePulses = this.pulses.filter((p) => timeSec - p.birthSec < PULSE_LIFETIME_SEC);
@@ -135,7 +138,7 @@ export class MathCanvasRenderer {
     const cyRatio = wideDesktop
       ? 0.5 - scrollProgress * 0.06
       : portraitHero
-        ? 0.31 + scrollProgress * 0.17
+        ? 0.22 + scrollProgress * 0.16
         : 0.5;
 
     this.projectPoints(
@@ -154,10 +157,102 @@ export class MathCanvasRenderer {
     ctx.save();
     ctx.globalAlpha = ambientFade;
 
+    this.drawSpatialAxes(ctx, w, h, camera, cxRatio, cyRatio);
     this.drawPolylines(ctx, scene, PRISM_HALO_LUT, 3.2);
     this.drawPolylines(ctx, scene, PRISM_CORE_LUT, 1.32);
     this.drawNodes(ctx, scene.nodeIndices);
     this.drawWavePulses(ctx, timeSec);
+    this.drawPointerCrosshair(ctx, w, h);
+
+    ctx.restore();
+  }
+
+  drawEngineeringDatum(ctx, w, h) {
+    ctx.save();
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(245, 245, 242, 0.032)';
+    ctx.beginPath();
+    for (let x = DATUM_STEP_PX; x < w; x += DATUM_STEP_PX) {
+      const gx = x + 0.5;
+      ctx.moveTo(gx, 0);
+      ctx.lineTo(gx, h);
+    }
+    for (let y = DATUM_STEP_PX; y < h; y += DATUM_STEP_PX) {
+      const gy = y + 0.5;
+      ctx.moveTo(0, gy);
+      ctx.lineTo(w, gy);
+    }
+    ctx.stroke();
+
+    // Fiducial + intersections every 3 cells
+    const major = DATUM_STEP_PX * 3;
+    ctx.strokeStyle = 'rgba(245, 245, 242, 0.1)';
+    ctx.beginPath();
+    for (let x = major; x < w; x += major) {
+      for (let y = major; y < h; y += major) {
+        const cx = x + 0.5;
+        const cy = y + 0.5;
+        ctx.moveTo(cx - 4, cy);
+        ctx.lineTo(cx + 4, cy);
+        ctx.moveTo(cx, cy - 4);
+        ctx.lineTo(cx, cy + 4);
+      }
+    }
+    // Right-edge calibration vernier ticks
+    const rightX = w - 0.5;
+    for (let y = 72, idx = 0; y < h - 24; y += 18, idx++) {
+      const len = idx % 4 === 0 ? 9 : 4;
+      const ty = y + 0.5;
+      ctx.moveTo(rightX - len, ty);
+      ctx.lineTo(rightX, ty);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  drawSpatialAxes(ctx, w, h, camera, cxRatio, cyRatio) {
+    const { axes, rings } = this.axisDescriptors;
+    ctx.save();
+    ctx.lineWidth = 1;
+
+    // Polar floor datum rings
+    ctx.strokeStyle = 'rgba(245, 245, 242, 0.07)';
+    for (const ring of rings) {
+      let open = false;
+      ctx.beginPath();
+      for (const pt of ring) {
+        const p = projectPoint3D(pt[0], pt[1], pt[2], w, h, camera, cxRatio, cyRatio);
+        if (!p.visible) {
+          open = false;
+          continue;
+        }
+        if (!open) {
+          ctx.moveTo(p.sx, p.sy);
+          open = true;
+        } else {
+          ctx.lineTo(p.sx, p.sy);
+        }
+      }
+      ctx.stroke();
+    }
+
+    // Orthogonal X/Y/Z axis vectors
+    ctx.font = '9px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.textBaseline = 'middle';
+    for (const axis of axes) {
+      const pa = projectPoint3D(axis.a[0], axis.a[1], axis.a[2], w, h, camera, cxRatio, cyRatio);
+      const pb = projectPoint3D(axis.b[0], axis.b[1], axis.b[2], w, h, camera, cxRatio, cyRatio);
+      if (pa.visible && pb.visible) {
+        ctx.strokeStyle = 'rgba(245, 245, 242, 0.13)';
+        ctx.beginPath();
+        ctx.moveTo(pa.sx, pa.sy);
+        ctx.lineTo(pb.sx, pb.sy);
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(245, 245, 242, 0.36)';
+        ctx.fillText(`+${axis.label.toUpperCase()}`, pb.sx + 4, pb.sy);
+      }
+    }
 
     ctx.restore();
   }
@@ -298,10 +393,11 @@ export class MathCanvasRenderer {
       return;
     }
     ctx.save();
-    ctx.strokeStyle = 'rgba(245, 245, 242, 0.9)';
-    ctx.fillStyle = '#ffffff';
+    ctx.font = '9px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.textBaseline = 'middle';
     ctx.lineWidth = 1;
 
+    let tracked = 0;
     for (const idx of nodeIndices) {
       if (idx < 0 || idx >= this.projVis.length || !this.projVis[idx]) {
         continue;
@@ -309,17 +405,29 @@ export class MathCanvasRenderer {
       const x = this.projX[idx];
       const y = this.projY[idx];
 
+      // Core focal point
+      ctx.fillStyle = '#ffffff';
       ctx.beginPath();
-      ctx.arc(x, y, 2.2, 0, TAU);
+      ctx.arc(x, y, 2, 0, TAU);
       ctx.fill();
 
-      // Minimal engineering reticle cross around node
+      // Target reticle + hardware accent box
+      ctx.strokeStyle = 'rgba(255, 77, 0, 0.62)';
+      ctx.strokeRect(Math.round(x) - 5.5, Math.round(y) - 5.5, 11, 11);
+
+      ctx.strokeStyle = 'rgba(245, 245, 242, 0.8)';
       ctx.beginPath();
-      ctx.moveTo(x - 6, y);
-      ctx.lineTo(x + 6, y);
-      ctx.moveTo(x, y - 6);
-      ctx.lineTo(x, y + 6);
+      ctx.moveTo(x - 9, y);
+      ctx.lineTo(x + 9, y);
+      ctx.moveTo(x, y - 9);
+      ctx.lineTo(x, y + 9);
       ctx.stroke();
+
+      if (this.widthCss >= 640) {
+        ctx.fillStyle = 'rgba(245, 245, 242, 0.56)';
+        ctx.fillText(`N${tracked} ${Math.round(x)},${Math.round(y)}`, x + 10, y - 8);
+      }
+      tracked++;
     }
     ctx.restore();
   }
@@ -339,6 +447,32 @@ export class MathCanvasRenderer {
       ctx.arc(pulse.x, pulse.y, radius, 0, TAU);
       ctx.stroke();
     }
+    ctx.restore();
+  }
+
+  drawPointerCrosshair(ctx, w, h) {
+    if (!this.pointer.active || this.pointer.x <= 0 || this.pointer.y <= 0 || w < 640) {
+      return;
+    }
+    const px = Math.round(this.pointer.x) + 0.5;
+    const py = Math.round(this.pointer.y) + 0.5;
+    if (px >= w || py >= h) {
+      return;
+    }
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 77, 0, 0.45)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(px - 10, py);
+    ctx.lineTo(px - 3, py);
+    ctx.moveTo(px + 3, py);
+    ctx.lineTo(px + 10, py);
+    ctx.moveTo(px, py - 10);
+    ctx.lineTo(px, py - 3);
+    ctx.moveTo(px, py + 3);
+    ctx.lineTo(px, py + 10);
+    ctx.stroke();
     ctx.restore();
   }
 }
