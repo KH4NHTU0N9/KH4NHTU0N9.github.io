@@ -201,5 +201,53 @@ function initApp() {
 
   canvas.addEventListener('dblclick', () => resetCamera());
 
+  canvas.addEventListener(
+    'wheel',
+    (ev) => {
+      ev.preventDefault();
+      const factor = ev.deltaY > 0 ? 0.92 : 1.08;
+      state.camera.zoom = clamp(state.camera.zoom * factor, 0.45, 2.8);
+      renderFrameNow(false);
+    },
+    { passive: false },
+  );
+
+  zenExitBtn?.addEventListener('click', () => setZenMode(false));
+
+  window.addEventListener('keydown', (ev) => {
+    const tag = ev.target?.tagName?.toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || ev.metaKey || ev.ctrlKey || ev.altKey) {
+      return;
+    }
+    const key = ev.key.toLowerCase();
+    if (key === ' ') {
+      ev.preventDefault();
+      togglePause();
+    } else if (key === 'r') {
+      resetCamera();
+    } else if (key === 'h') {
+      setZenMode(!state.zen);
+    } else if (key === 'escape' && state.zen) {
+      setZenMode(false);
+    } else if (/^[1-4]$/.test(key)) {
+      const idx = Number(key) - 1;
+      if (MODEL_ORDER[idx]) {
+        switchModel(MODEL_ORDER[idx]);
+      }
+    }
+  });
+
+  if (typeof ResizeObserver === 'function') {
+    const ro = new ResizeObserver(() => {
+      renderer.resize();
+      renderFrameNow(false);
+    });
+    ro.observe(canvasStage);
+  } else {
+    window.addEventListener('resize', () => {
+      renderer.resize();
+      renderFrameNow(false);
+    });
+  }
 }
 initApp();
