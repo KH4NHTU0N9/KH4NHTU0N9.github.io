@@ -1,53 +1,41 @@
 # Project Execution Plan — KH4NHTU0N9.github.io
 
 ## Phase 1: Initiation (Khởi tạo)
-- **Mục tiêu (Objective):** Xây dựng trang giới thiệu cá nhân (`https://kh4nhtu0n9.github.io/`) theo chuẩn **Editorial Swiss Grid + Carbon Pitch-Black (`#050505`)** kết hợp **Full-Bleed Optical Prism 3D Mathematics Canvas** chạy mượt trên GitHub Pages với zero dependencies.
+- **Mục tiêu (Objective):** Xây dựng trang giới thiệu cá nhân (`https://kh4nhtu0n9.github.io/`) theo chuẩn **Hardware Cockpit / GCS.MK2 Workstation** (`A1 + A2`): phối màu Carbon Obsidian `#040507` + Signal Orange `#ff4d00`, đóng khung rõ ràng bảng điều khiển vận hành (Oscilloscope + Sliders) song song với CAD Manifold Viewport.
 - **Phạm vi (In-scope):**
-  - Canvas 2D hiệu năng cao (`src/math/mathArt.js`, `src/math/projection3d.js`, `src/math/renderer.js`) gồm 3 cấu trúc toán học (`01 WAVE`, `02 SPIRO`, `03 4D` Tesseract $\mathbb{R}^4 \to \mathbb{R}^3$).
-  - Bố cục Swiss Grid thuần nét `1px` hairline, `border-radius: 0`, bảng chỉ mục kỹ thuật 3 cột (`01 / TECHNICAL INDEX`) và sổ cái repository 2 cột (`02 / SELECTED REPOSITORIES`).
-  - Hỗ trợ chế độ toàn màn hình tập trung `SOLO [H]` (Zen Mode), tương tác xoay/ripple toàn vùng trống viewport, và làm mới danh sách repo từ GitHub API có fallback an toàn (`src/data/profile.js`).
-- **Ngoài phạm vi (Out-scope):**
-  - Framework nặng (React/Three.js), card kính mờ glassmorphism, pill badges rải rác, hoặc hiệu ứng gradient tím/cyan kiểu AI template.
+  - Cockpit 2 cột desktop (`UNIT_01` Console + `CAM_01` CAD Viewport) và xếp dọc mobile (`CAM_01` trên, `UNIT_01` dưới).
+  - Oscilloscope thời gian thực (`src/math/scopeRenderer.js`) lấy mẫu trực tiếp từ `scene.points` kèm chỉ số `PK` & `RMS`.
+  - Bộ 4 thanh trượt phần cứng điều chỉnh trực tiếp `freq`, `amp`, `speed`, `zoom` trên hình học 3D/4D.
+  - Bảng mô-đun kỹ thuật `01 // CAPABILITY MATRIX` (hỗ trợ `> grep`) và sổ cái `02 // SOURCE REPOSITORIES`.
 - **Tài liệu tham khảo:**
   1. [GitHub Docs — What is GitHub Pages?](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages)
   2. [MDN Web Docs — CanvasRenderingContext2D](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D)
-  3. [Node.js Documentation — Test runner (`node:test`)](https://nodejs.org/api/test.html)
+  3. [Chrome DevTools Protocol — Runtime & Page Domains](https://chromedevtools.github.io/devtools-protocol/)
+  4. [Node.js Documentation — Test runner (`node:test`)](https://nodejs.org/api/test.html)
 
 ## Phase 2: Planning (Lập kế hoạch)
 - **Kiến trúc hệ thống:**
-  - `index.html`: `<canvas id="math-canvas">` fixed full-bleed nền `#050505`, phủ phía trên là `<div id="app-shell">` (`header.top-bar`, `main.editorial-main` chứa `#hero-content` + `#profile-sections`, `footer#site-footer`).
-  - `src/math/mathArt.js`: Tạo geometry & bảng màu tán sắc quang học `spectralRgba(t, alpha)` cho `wave`, `spiro`, `tesseract`.
-  - `src/math/projection3d.js` & `src/math/renderer.js`: Chiếu phối cảnh 3D, LUT 48 bậc (`PRISM_CORE_LUT` / `PRISM_HALO_LUT`), reticle nodes, pointer magnetic deflection và scroll parallax.
-  - `src/ui/profileView.js` & `styles/main.css`: Bố cục Swiss hairline grid (`index-grid`, `ledger-grid`, `text-tabs`), scrim đọc chữ cho Hero, tối ưu responsive không tràn ngang (`overflow-x: clip`, `overflow-wrap: anywhere`).
-- **Quản trị rủi ro (Risk Management):**
-  - *Rủi ro chữ khó đọc trên nền đồ họa:* Khắc phục bằng gradient scrim hướng trái cho `.hero-section::before` và nền tối bán trong suốt có kiểm soát cho `.sections-stack`.
-  - *Rủi ro tràn ngang trên mobile (`390px`) với handle dài `trankhanhtuong`:* Sử dụng `clamp()` kích thước hiển thị và `overflow-wrap: anywhere`.
-  - *Rủi ro URL không hợp lệ khi hydrate GitHub API:* Kiểm tra allowlist qua `isSafeExternalUrl` (`https:` / `mailto:`).
-- **Milestones:**
-  - M1: Thay lõi toán học sang 3 preset Optical Prism + unit tests (`src/math/mathArt.js`, `tests/mathArt.test.mjs`).
-  - M2: Chuyển UI/CSS sang Swiss Editorial Carbon `#050505` (`index.html`, `src/main.js`, `src/ui/profileView.js`, `styles/main.css`).
-  - M3: Kiểm thử `node --test` và Headless Chrome E2E trên Desktop (`1440×900`) & Mobile (`390×844`).
-  - M4: Commit atomic sạch và đẩy lên `origin/main`.
+  - `src/math/mathArt.js`: Hỗ trợ `normalizeArtParams({ freq, amp })` trên cả 3 mô hình `wave`, `spiro`, `tesseract` giữ nguyên giới hạn tọa độ an toàn.
+  - `src/math/renderer.js`: Vẽ lưới CAD `48px`/`192px` rõ nét, thước chia cạnh, tâm chữ thập cam, `buildAxisDescriptors(1.36)`, node targeting reticle và trả về `scene` mỗi frame cho oscilloscope tái sử dụng.
+  - `src/math/scopeRenderer.js`: Vẽ dao động ký sóng `Y(x,t)` và biểu đồ phổ 18 dải từ `scene.points`, trả về `{ peak, rms }` thực.
+  - `src/ui/profileView.js` & `src/main.js`: Kết nối slider phần cứng, nút `RESET` / phím `[R]`, `SOLO [H]` mở rộng `#viewport-pane` toàn màn hình `100vw × 100dvh`, và bộ lọc `> grep`.
 
 ## Phase 3: Execution (Thực thi)
 - **Task Tracker:**
-  - [x] Viết lại `src/math/mathArt.js` và `tests/mathArt.test.mjs` cho `wave`, `spiro`, `tesseract` & `spectralRgba`.
-  - [x] Cập nhật `src/math/renderer.js` với nền `#050505`, `PRISM_CORE_LUT`/`PRISM_HALO_LUT`, reticle nodes, scroll parallax.
-  - [x] Viết lại `index.html`, `src/main.js`, `src/ui/profileView.js` theo bố cục Swiss Editorial Grid.
-  - [x] Triển khai `styles/main.css` chuẩn `0px` radius, `1px` structural hairlines, responsive `<= 760px`.
-  - [x] Chạy `node --test tests/*.test.mjs` (11/11 pass) và kiểm thử trực quan Headless Chrome (Desktop `1440×900` + Mobile `390×844` + Zen `SOLO [H]`).
-  - [ ] Commit atomic và push `origin/main`.
+  - [x] Mở rộng `src/math/mathArt.js` và `tests/mathArt.test.mjs` cho điều biến `freq` / `amp`.
+  - [x] Tạo `src/math/scopeRenderer.js` vẽ Oscilloscope & 18-band spectrum thời gian thực.
+  - [x] Nâng cấp `src/math/renderer.js` sang CAD Viewport `0.5, 0.5` chuyển tọa độ chuột nội bộ `toCanvasLocal`.
+  - [x] Thiết kế lại `index.html`, `src/ui/profileView.js`, `src/main.js`, `styles/main.css` thành Hardware Cockpit 2 cột + Responsive Mobile + Zen Fix.
 - **DevLog:**
-  - Chuyển đổi toàn bộ giao diện từ Bento glassmorphism sang **Editorial Swiss Grid** theo lựa chọn thiết kế `A1 / A2 / A3`: Carbon `#050505`, Bone White `#f5f5f2`, đường kẻ cấu trúc `1px`, bỏ hoàn toàn capsule chips và card gradient.
-  - Sửa bố cục mobile từ kiểm thử ảnh chụp thực tế: đặt `.top-bar` nền đặc `#050505` + `scroll-margin-top` theo breakpoint và căn lại `cyRatio` trên màn hình dọc.
-  - Nâng cấp thẩm mỹ kỹ thuật (Tech / CAD Instrumentation): bổ sung lưới chuẩn `72px`, vạch chia thước cạnh phải, trục tọa độ `X/Y/Z` & vòng tham chiếu `buildAxisDescriptors`, khung ngắm node tọa độ thực, thanh telemetry `AZ · EL · T`, bảng thông số `MANIFOLD_KERNEL` / `GOVERNING_EQ` đồng bộ thời gian thực, và bộ lọc lệnh `> grep` cho bảng mô-đun kỹ thuật (`MOD.01`..`MOD.03`).
+  - Chuyển đổi từ Swiss minimal sang **Hardware Cockpit / GCS.MK2** giải quyết dứt điểm phản hồi bố cục đơn điệu: đưa viewport 3D vào khung máy đo CAD rõ ràng cạnh bảng điều khiển có Oscilloscope thật và 4 thanh điều biến trực tiếp.
+  - Vá 2 điểm từ kiểm thử ảnh chụp thực tế: ẩn `.hud-guide` trong `.is-zen` để tránh đè nút `RETURN TO GCS [H]`, và thêm `scroll-margin-top` đồng bộ cho `.sections-stack` trên mobile.
 
 ## Phase 4: Monitoring (Giám sát)
-- **Kiểm thử đơn vị (`node --test tests/*.test.mjs`):** `tests 11`, `pass 11`, `fail 0`, `skipped 0`, `SYNTAX_OK` qua `node --check` trên toàn bộ module trong `src/` (gồm kiểm chứng số lượng đỉnh chính xác `wave: 2184`, `spiro: 1980`, `tesseract: 256` và `equation` / `topology`).
+- **Kiểm thử đơn vị (`node --test tests/*.test.mjs`):** **12/12 pass**, `fail 0`, `skipped 0`, `SYNTAX_OK` qua `node --check` trên toàn bộ ES modules trong `src/`.
 - **Kiểm thử trình duyệt Headless Chrome CDP:**
-  - Zero runtime faults: `consoleErrors: []`, `exceptions: []`, `logErrors: []`.
-  - Desktop (`1440×900`, `2x`): `overflow: false`, `#top-telemetry` (`AZ · EL · T`) và `.hero-spec-grid` đồng bộ tức thì theo preset (`wave` / `tesseract`), bộ lọc `> grep` (`wire` → `Wireshark`, empty state chuẩn khi không khớp), `unitCount: 39`, `repoCount: 6`.
-  - Mobile (`390×844`, `3x`): `mobileHeroOverflow: false`, `mobileSectionsOverflow: false`, mô hình 3D định vị thoáng ở vùng khung trên không che khối nhận diện & thông số Hero.
+  - Zero lỗi runtime: `consoleErrors: []`, `exceptions: []`, `logErrors: []`.
+  - Desktop (`1440×900`, `2x`): `overflow: false`, `deckHeight: 856`, tương tác slider (`1.90×`, `1.45×`, `1.20×`) cập nhật trực tiếp `scopeStats` (`PK 0.61 · RMS 0.26` → `PK 0.93 · RMS 0.39`), `RESET` khôi phục `1.00×`, `zenStage: { w: 1440, h: 900, isZen: true }`.
+  - Mobile (`390×844`, `3x`): `overflow: false` ở cả Hero (`stageY: 123`, `stageH: 304`) lẫn Capability Matrix / Ledger.
 
 ## Phase 5: Closure (Đóng dự án)
-- Hoàn tất dọn tệp tạm xác minh, commit atomic sạch theo từng module, push `origin/main`, và kiểm tra `HTTP/2 200` trên `https://kh4nhtu0n9.github.io/`.
+- Hoàn tất dọn tệp nháp kiểm thử, commit atomic theo từng module, push `origin/main` và kiểm tra HTTP `200` trên `https://kh4nhtu0n9.github.io/`.
