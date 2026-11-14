@@ -33,3 +33,10 @@ test('all math models produce bounded finite coordinates without NaN', () => {
     }
   }
 });
+
+test('extreme out-of-range ODE parameters clamp safely without diverging', () => {
+  const res = sampleMathScene('lorenz', { sigma: 999, rho: 999, beta: 0.001 }, 10, 600);
+  for (let i = 0; i < res.points.length; i++) {
+    assert.ok(Number.isFinite(res.points[i]));
+  }
+});
