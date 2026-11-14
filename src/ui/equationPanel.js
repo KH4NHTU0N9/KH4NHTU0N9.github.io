@@ -166,4 +166,59 @@ export class EquationPanel {
     telemetry.append(rowCoords, rowDeriv, rowSpeed);
     this.container.appendChild(telemetry);
   }
+
+  /**
+   * Rebuilds equation lines and slider inputs when active mathematical model changes.
+   * @param {string} modelId
+   * @param {Record<string, number>} params
+   */
+  syncModelUI(modelId, params) {
+    this.state.modelId = modelId;
+    this.state.params = { ...params };
+
+    const model = MATH_MODELS[modelId] || MATH_MODELS.lorenz;
+    this.subtitleEl.textContent = model.subtitle;
+
+    for (const [id, btn] of this.modelButtons.entries()) {
+      const active = id === model.id;
+      btn.classList.toggle('is-active', active);
+      btn.setAttribute('aria-selected', String(active));
+    }
+
+    this.eqListEl.textContent = '';
+    for (const eq of model.equations) {
+      this.eqListEl.appendChild(createEl('code', 'equation-line', eq));
+    }
+
+    this.slidersRoot.textContent = '';
+    this.sliderControls.clear();
+
+    for (const spec of model.params) {
+      const currentVal = Number.isFinite(params[spec.key]) ? params[spec.key] : spec.default;
+      const row = createEl('label', 'slider-row');
+
+      const meta = createEl('div', 'slider-row__meta');
+      meta.appendChild(createEl('span', 'slider-label', spec.label));
+      const valDisplay = createEl('span', 'slider-value', formatParamValue(currentVal, spec.step));
+      meta.appendChild(valDisplay);
+
+      const input = document.createElement('input');
+      input.type = 'range';
+      input.className = 'slider-input';
+      input.min = String(spec.min);
+      input.max = String(spec.max);
+      input.step = String(spec.step);
+      input.value = String(currentVal);
+      input.setAttribute('aria-label', spec.label);
+      input.addEventListener('input', () => {
+        const numeric = Number(input.value);
+        valDisplay.textContent = formatParamValue(numeric, spec.step);
+        this.callbacks.onParamChange(spec.key, numeric);
+      });
+
+      row.append(meta, input);
+      this.slidersRoot.appendChild(row);
+      this.sliderControls.set(spec.key, { input, valDisplay, step: spec.step });
+    }
+  }
 }
