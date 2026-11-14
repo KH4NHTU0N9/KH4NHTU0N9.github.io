@@ -15,3 +15,21 @@ Interactive GitHub Pages user site (`https://kh4nhtu0n9.github.io/`) built with 
 - **Safe Profile & GitHub Hydration:**
   - Domain-filtered engineering stack (`Embedded & Flight`, `Security & Forensics`, `Systems, Data & Cloud`), verified repository showcase, and safe `https:`/`mailto:` URL allowlist checks.
 
+## Local Development & Verification
+
+```bash
+# Run unit tests (Node.js built-in test runner)
+node --test tests/*.test.mjs
+
+# Preview statically with Python HTTP server
+python3 -m http.server 4173
+```
+
+Open `http://127.0.0.1:4173/` in any modern browser.
+
+## References
+
+1. [GitHub Docs — What is GitHub Pages?](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages)
+2. [MDN Web Docs — CanvasRenderingContext2D](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D)
+3. [Edward N. Lorenz (1963) — Deterministic Nonperiodic Flow](https://journals.ametsoc.org/view/journals/atsc/20/2/1520-0469_1963_020_0130_dnf_2_0_co_2.xml)
+4. [Press et al., Numerical Recipes — Runge-Kutta Method](https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods)
