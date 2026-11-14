@@ -17,6 +17,24 @@ test('isSafeExternalUrl strictly enforces https and optional mailto allowlist', 
   assert.equal(isSafeExternalUrl('mailto:invalid-email', { allowMailto: true }), false);
 });
 
+test('all embedded PROFILE_DATA links pass strict URL safety validation', () => {
+  assert.equal(isSafeExternalUrl(PROFILE_DATA.avatarUrl), true);
+  assert.equal(isSafeExternalUrl(PROFILE_DATA.githubUrl), true);
+
+  for (const s of PROFILE_DATA.socials) {
+    assert.equal(isSafeExternalUrl(s.url, { allowMailto: s.allowMailto }), true, s.label);
+  }
+  for (const repo of PROFILE_DATA.fallbackRepos) {
+    assert.equal(isSafeExternalUrl(repo.htmlUrl), true, repo.name);
+    if (repo.homepage !== null) {
+      assert.equal(isSafeExternalUrl(repo.homepage), true, `${repo.name} homepage`);
+    }
+  }
+  for (const note of PROFILE_DATA.mathNotes) {
+    assert.equal(isSafeExternalUrl(note.url), true, note.title);
+  }
+});
+
 test('normalizeRepoRecord filters profile README repo and rejects unsafe URLs', () => {
   assert.equal(
     normalizeRepoRecord({ name: 'KH4NHTU0N9', html_url: 'https://github.com/KH4NHTU0N9/KH4NHTU0N9' }),
