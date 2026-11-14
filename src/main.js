@@ -1,6 +1,7 @@
-import { ART_PRESETS, clamp } from './math/mathArt.js';
+import { ART_PRESETS, DEFAULT_ART_PARAMS, clamp } from './math/mathArt.js';
 import { createCameraState } from './math/projection3d.js';
 import { MathCanvasRenderer } from './math/renderer.js';
+import { OscilloscopeRenderer } from './math/scopeRenderer.js';
 import { PROFILE_DATA, fetchPublicReposWithFallback } from './data/profile.js';
 import { ProfileView } from './ui/profileView.js';
 
@@ -39,15 +40,15 @@ function buildHeaderControls(navRoot, initialState, callbacks) {
   resetBtn.type = 'button';
   resetBtn.className = 'nav-cell';
   resetBtn.textContent = 'RESET';
-  resetBtn.title = 'Reset camera attitude (R)';
-  resetBtn.addEventListener('click', () => callbacks.onResetCamera());
+  resetBtn.title = 'Reset camera & sliders (R)';
+  resetBtn.addEventListener('click', () => callbacks.onResetAll());
   navRoot.appendChild(resetBtn);
 
   const soloBtn = document.createElement('button');
   soloBtn.type = 'button';
   soloBtn.className = 'nav-cell nav-cell--accent';
   soloBtn.textContent = 'SOLO [H]';
-  soloBtn.title = 'Fullscreen geometric canvas (H)';
+  soloBtn.title = 'Fullscreen geometric viewport (H)';
   soloBtn.addEventListener('click', () => callbacks.onToggleZen());
   navRoot.appendChild(soloBtn);
 
@@ -68,14 +69,18 @@ function buildHeaderControls(navRoot, initialState, callbacks) {
 function initApp() {
   const appShell = document.getElementById('app-shell');
   const canvas = document.getElementById('math-canvas');
+  const canvasStage = document.getElementById('canvas-stage');
   const navRoot = document.getElementById('nav-controls');
   const telemetryRoot = document.getElementById('top-telemetry');
-  const heroRoot = document.getElementById('hero-content');
+  const viewportBadgeEl = document.getElementById('viewport-badge');
+  const viewportEqEl = document.getElementById('viewport-eq');
+  const viewportAttitudeEl = document.getElementById('viewport-attitude');
+  const consoleRoot = document.getElementById('hero-content');
   const sectionsRoot = document.getElementById('profile-sections');
   const footerRoot = document.getElementById('site-footer');
   const zenExitBtn = document.getElementById('zen-exit-btn');
 
-  if (!appShell || !canvas || !navRoot || !heroRoot || !sectionsRoot || !footerRoot) {
+  if (!appShell || !canvas || !canvasStage || !navRoot || !consoleRoot || !sectionsRoot || !footerRoot) {
     return;
   }
 
@@ -85,23 +90,41 @@ function initApp() {
     paused: Boolean(reducedMotionQuery?.matches),
     zen: false,
     camera: createCameraState(),
+    params: { ...DEFAULT_ART_PARAMS, speed: 1.0 },
     simTimeSec: 0,
   };
 
   const renderer = new MathCanvasRenderer(canvas);
-  const profileView = new ProfileView({ heroRoot, sectionsRoot, footerRoot }, PROFILE_DATA);
+  const profileView = new ProfileView(
+    { consoleRoot, sectionsRoot, footerRoot },
+    PROFILE_DATA,
+    {
+      onParamChange: (key, val) => {
+        if (key === 'zoom') {
+          state.camera.zoom = clamp(val, 0.65, 1.65);
+        } else {
+          state.params[key] = val;
+        }
+        renderFrameNow(true);
+      },
+    },
+  );
+  const scopeCanvas = profileView.getScopeCanvas();
+  const scopeRenderer = scopeCanvas ? new OscilloscopeRenderer(scopeCanvas) : null;
 
   const nav = buildHeaderControls(navRoot, state, {
     onSelectPreset: (presetId) => switchPreset(presetId),
     onTogglePause: () => togglePause(),
-    onResetCamera: () => resetCamera(),
+    onResetAll: () => resetAll(),
     onToggleZen: () => setZenMode(!state.zen),
   });
 
   let lastHudSyncMs = 0;
+  let lastScopeStats = { peak: 0, rms: 0 };
+
   function syncTelemetry(force = false) {
     const now = performance.now();
-    if (!force && now - lastHudSyncMs < 100) {
+    if (!force && now - lastHudSyncMs < 90) {
       return;
     }
     lastHudSyncMs = now;
@@ -109,33 +132,34 @@ function initApp() {
     const preset = ART_PRESETS[state.presetId] || ART_PRESETS.wave;
     const yawText = formatWrappedDeg(state.camera.yawRad);
     const pitchText = formatWrappedDeg(state.camera.pitchRad);
+    const zoomText = `${state.camera.zoom.toFixed(2)}×`;
     const phaseText = state.simTimeSec.toFixed(1).padStart(5, '0');
 
     if (telemetryRoot) {
-      telemetryRoot.textContent = `AZ ${yawText} · EL ${pitchText} · T ${phaseText}s`;
+      telemetryRoot.textContent = `AZ ${yawText} · EL ${pitchText} · ZM ${zoomText} · T ${phaseText}s`;
     }
-    profileView.updateManifoldTelemetry({
-      code: preset.code,
-      label: preset.label,
-      specTitle: preset.specTitle,
-      equation: preset.equation,
-      topology: preset.topology,
-      yawText,
-    });
-  }
-
-  function computeScrollProgress() {
-    const scrollable = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-    return clamp(window.scrollY / scrollable, 0, 1);
+    if (viewportBadgeEl) {
+      viewportBadgeEl.textContent = `${preset.code} · ${preset.label.toUpperCase()} · ${preset.topology}`;
+    }
+    if (viewportEqEl) {
+      viewportEqEl.textContent = preset.equation;
+    }
+    if (viewportAttitudeEl) {
+      viewportAttitudeEl.textContent = `AZ ${yawText} · EL ${pitchText} · ZM ${zoomText}`;
+    }
+    profileView.updateScopeReadout(lastScopeStats);
   }
 
   function renderFrameNow(forceTelemetry = false) {
-    renderer.render({
+    const scene = renderer.render({
       presetId: state.presetId,
       camera: state.camera,
       timeSec: state.simTimeSec,
-      scrollProgress: computeScrollProgress(),
+      params: state.params,
     });
+    if (scene && scopeRenderer && !state.zen) {
+      lastScopeStats = scopeRenderer.render(scene);
+    }
     syncTelemetry(forceTelemetry);
   }
 
@@ -154,8 +178,10 @@ function initApp() {
     syncTelemetry(true);
   }
 
-  function resetCamera() {
+  function resetAll() {
     state.camera = createCameraState();
+    state.params = { ...DEFAULT_ART_PARAMS, speed: 1.0 };
+    profileView.syncSliderValues({ ...state.params, zoom: state.camera.zoom });
     renderFrameNow(true);
   }
 
@@ -169,21 +195,16 @@ function initApp() {
     }
     requestAnimationFrame(() => {
       renderer.resize();
-      renderFrameNow();
+      scopeRenderer?.resize();
+      renderFrameNow(true);
     });
   }
 
-  // Drag / ripple directly through non-interactive surfaces or anywhere in fullscreen
+  // Orbit & ripple inside the dedicated CAD viewport stage
   const activePointers = new Map();
   let dragMovedPx = 0;
 
-  const isInteractiveTarget = (target) =>
-    Boolean(target?.closest?.('a, button, input, [role="tab"]'));
-
-  window.addEventListener('pointerdown', (ev) => {
-    if (!state.zen && isInteractiveTarget(ev.target)) {
-      return;
-    }
+  canvasStage.addEventListener('pointerdown', (ev) => {
     activePointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
     dragMovedPx = 0;
     document.body.classList.add('is-orbiting');
@@ -200,8 +221,8 @@ function initApp() {
     activePointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
 
     dragMovedPx += Math.hypot(dx, dy);
-    state.camera.yawRad += dx * 0.0075;
-    state.camera.pitchRad = clamp(state.camera.pitchRad + dy * 0.0065, -1.25, 1.25);
+    state.camera.yawRad += dx * 0.008;
+    state.camera.pitchRad = clamp(state.camera.pitchRad + dy * 0.0068, -1.25, 1.25);
     renderFrameNow();
   });
 
@@ -219,21 +240,13 @@ function initApp() {
 
   window.addEventListener('pointerup', endPointer);
   window.addEventListener('pointercancel', endPointer);
-  document.addEventListener('mouseleave', () => {
+  canvasStage.addEventListener('mouseleave', () => {
     renderer.setPointerPosition(0, 0, false);
   });
 
-  window.addEventListener('dblclick', (ev) => {
-    if (!isInteractiveTarget(ev.target)) {
-      resetCamera();
-    }
+  canvasStage.addEventListener('dblclick', () => {
+    resetAll();
   });
-
-  window.addEventListener('scroll', () => {
-    if (state.paused) {
-      renderFrameNow();
-    }
-  }, { passive: true });
 
   zenExitBtn?.addEventListener('click', () => setZenMode(false));
 
@@ -247,7 +260,7 @@ function initApp() {
       ev.preventDefault();
       togglePause();
     } else if (key === 'r') {
-      resetCamera();
+      resetAll();
     } else if (key === 'h') {
       setZenMode(!state.zen);
     } else if (key === 'escape' && state.zen) {
@@ -262,6 +275,7 @@ function initApp() {
 
   window.addEventListener('resize', () => {
     renderer.resize();
+    scopeRenderer?.resize();
     renderFrameNow();
   });
 
@@ -271,9 +285,10 @@ function initApp() {
     lastFrameMs = nowMs;
 
     if (!state.paused) {
-      state.simTimeSec += dtSec;
-      if (activePointers.size === 0 && !reducedMotionQuery?.matches) {
-        state.camera.yawRad += dtSec * 0.2;
+      const rate = state.params.speed;
+      state.simTimeSec += dtSec * rate;
+      if (activePointers.size === 0 && !reducedMotionQuery?.matches && rate > 0) {
+        state.camera.yawRad += dtSec * 0.22 * rate;
       }
       renderFrameNow();
     }
@@ -281,6 +296,7 @@ function initApp() {
   };
 
   renderer.resize();
+  scopeRenderer?.resize();
   renderFrameNow(true);
   requestAnimationFrame(tick);
 
