@@ -39,14 +39,15 @@
   - [ ] Commit atomic và push `origin/main`.
 - **DevLog:**
   - Chuyển đổi toàn bộ giao diện từ Bento glassmorphism sang **Editorial Swiss Grid** theo lựa chọn thiết kế `A1 / A2 / A3`: Carbon `#050505`, Bone White `#f5f5f2`, đường kẻ cấu trúc `1px`, bỏ hoàn toàn capsule chips và card gradient.
-  - Sửa bố cục mobile từ kiểm thử ảnh chụp thực tế: đặt `.top-bar` nền đặc `#050505` + `scroll-margin-top: 96px` để tránh chữ tràn dưới thanh tiêu đề khi cuộn, và điều chỉnh `cyRatio = 0.31 + scrollProgress * 0.17` trên màn hình dọc (`!wideDesktop && !this.zen`) để mô hình 3D hiển thị thoáng ở nửa trên viewport không đè lên phần nhận diện Hero.
+  - Sửa bố cục mobile từ kiểm thử ảnh chụp thực tế: đặt `.top-bar` nền đặc `#050505` + `scroll-margin-top` theo breakpoint và căn lại `cyRatio` trên màn hình dọc.
+  - Nâng cấp thẩm mỹ kỹ thuật (Tech / CAD Instrumentation): bổ sung lưới chuẩn `72px`, vạch chia thước cạnh phải, trục tọa độ `X/Y/Z` & vòng tham chiếu `buildAxisDescriptors`, khung ngắm node tọa độ thực, thanh telemetry `AZ · EL · T`, bảng thông số `MANIFOLD_KERNEL` / `GOVERNING_EQ` đồng bộ thời gian thực, và bộ lọc lệnh `> grep` cho bảng mô-đun kỹ thuật (`MOD.01`..`MOD.03`).
 
 ## Phase 4: Monitoring (Giám sát)
-- **Kiểm thử đơn vị (`node --test tests/*.test.mjs`):** `tests 11`, `pass 11`, `fail 0`, `skipped 0`, `SYNTAX_OK` qua `node --check` trên toàn bộ module trong `src/`.
+- **Kiểm thử đơn vị (`node --test tests/*.test.mjs`):** `tests 11`, `pass 11`, `fail 0`, `skipped 0`, `SYNTAX_OK` qua `node --check` trên toàn bộ module trong `src/` (gồm kiểm chứng số lượng đỉnh chính xác `wave: 2184`, `spiro: 1980`, `tesseract: 256` và `equation` / `topology`).
 - **Kiểm thử trình duyệt Headless Chrome CDP:**
   - Zero runtime faults: `consoleErrors: []`, `exceptions: []`, `logErrors: []`.
-  - Desktop (`1440×900`, scale 2x): `overflow: false`, switch `wave` / `spiro` / `tesseract`, lọc chỉ mục (`indexCols: 3` -> `filteredIndexCols: 1`), `zenState` (`shellIsZen: true`, `exitHidden: false`, `bodyLocked: true`).
-  - Mobile (`390×844`, scale 3x): `overflow: false` cả ở Hero và các section cuộn xuống, 3D Wave nằm trọn khung trên không che khối văn bản.
+  - Desktop (`1440×900`, `2x`): `overflow: false`, `#top-telemetry` (`AZ · EL · T`) và `.hero-spec-grid` đồng bộ tức thì theo preset (`wave` / `tesseract`), bộ lọc `> grep` (`wire` → `Wireshark`, empty state chuẩn khi không khớp), `unitCount: 39`, `repoCount: 6`.
+  - Mobile (`390×844`, `3x`): `mobileHeroOverflow: false`, `mobileSectionsOverflow: false`, mô hình 3D định vị thoáng ở vùng khung trên không che khối nhận diện & thông số Hero.
 
 ## Phase 5: Closure (Đóng dự án)
-- Sẵn sàng dọn tệp tạm xác minh, tạo chuỗi commit atomic sạch theo từng module, đẩy lên `origin/main` và kiểm tra HTTP live trên `https://kh4nhtu0n9.github.io/`.
+- Hoàn tất dọn tệp tạm xác minh, commit atomic sạch theo từng module, push `origin/main`, và kiểm tra `HTTP/2 200` trên `https://kh4nhtu0n9.github.io/`.
