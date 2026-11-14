@@ -15,5 +15,32 @@
     />
     <link rel="stylesheet" href="./styles/main.css" />
   </head>
-  <body></body>
+  <body>
+    <div id="app-shell" class="app-shell">
+      <main class="observatory-layout">
+        <section class="math-stage-grid" aria-label="Interactive 3D Mathematics Canvas and Parameters">
+          <div id="canvas-stage" class="canvas-stage">
+            <canvas id="math-canvas" aria-label="Interactive 3D mathematical phase-space plot"></canvas>
+
+            <div class="canvas-hud canvas-hud--top">
+              <span id="hud-model-badge" class="hud-pill">@KH4NHTU0N9 · LORENZ ATTRACTOR</span>
+              <button id="zen-exit-btn" class="hud-pill hud-pill--action" type="button" hidden>
+                Exit Zen (H)
+              </button>
+            </div>
+
+            <div class="canvas-hud canvas-hud--bottom">
+              <span class="hud-hint">Drag orbit · Scroll/pinch zoom · Click wave · [1–4] switch · [H] Zen</span>
+            </div>
+          </div>
+
+          <aside id="equation-panel" class="glass-card equation-panel" aria-label="Mathematical controls"></aside>
+        </section>
+
+        <section id="profile-view" class="profile-view" aria-label="Developer portfolio"></section>
+      </main>
+    </div>
+
+    <script type="module" src="./src/main.js"></script>
+  </body>
 </html>
