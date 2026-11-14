@@ -221,4 +221,64 @@ export class EquationPanel {
       this.sliderControls.set(spec.key, { input, valDisplay, step: spec.step });
     }
   }
+
+  /**
+   * Updates slider values in place (e.g. on Reset Defaults) without recreating DOM nodes.
+   * @param {Record<string, number>} params
+   */
+  updateParamValues(params) {
+    this.state.params = { ...params };
+    for (const [key, ctrl] of this.sliderControls.entries()) {
+      if (Number.isFinite(params[key])) {
+        ctrl.input.value = String(params[key]);
+        ctrl.valDisplay.textContent = formatParamValue(params[key], ctrl.step);
+      }
+    }
+  }
+
+  /**
+   * Synchronizes Play/Pause, Theme, and Axes indicator states.
+   * @param {{ themeId?: string, paused?: boolean, showAxes?: boolean }} partial
+   */
+  syncControlStates(partial) {
+    Object.assign(this.state, partial);
+    if (this.pauseBtn) {
+      this.pauseBtn.textContent = this.state.paused ? 'Resume' : 'Pause';
+      this.pauseBtn.setAttribute('aria-pressed', String(this.state.paused));
+    }
+    if (this.axesToggleBtn) {
+      this.axesToggleBtn.textContent = this.state.showAxes ? 'Axes: ON' : 'Axes: OFF';
+      this.axesToggleBtn.setAttribute('aria-pressed', String(this.state.showAxes));
+    }
+    for (const [id, btn] of this.themeButtons.entries()) {
+      const active = id === this.state.themeId;
+      btn.classList.toggle('is-active', active);
+      btn.setAttribute('aria-pressed', String(active));
+    }
+  }
+
+  /**
+   * Updates throttled real-time 3D state and velocity telemetry readouts.
+   * @param {{ stateSample: number[], derivativeSample: number[], speedMag: number }} telemetry
+   */
+  updateTelemetry(telemetry) {
+    if (!telemetry) {
+      return;
+    }
+    const [x, y, z] = telemetry.stateSample;
+    const [dx, dy, dz] = telemetry.derivativeSample;
+    this.telemetryCoordsEl.textContent = `(${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)})`;
+    this.telemetryDerivEl.textContent = `(${dx.toFixed(1)}, ${dy.toFixed(1)}, ${dz.toFixed(1)})`;
+    this.telemetrySpeedEl.textContent = telemetry.speedMag.toFixed(2);
+  }
+}
+
+function formatParamValue(val, step) {
+  if (step >= 1) {
+    return String(Math.round(val));
+  }
+  if (step >= 0.1) {
+    return val.toFixed(1);
+  }
+  return val.toFixed(2);
 }
