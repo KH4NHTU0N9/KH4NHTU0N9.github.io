@@ -74,3 +74,48 @@ export function normalizeRepoRecord(rawRepo, username = 'KH4NHTU0N9') {
     updatedAt: typeof rawRepo.updated_at === 'string' ? rawRepo.updated_at : null,
   };
 }
+
+export const PROFILE_DATA = Object.freeze({
+  login: 'KH4NHTU0N9',
+  displayName: 'trankhanhtuong',
+  pronouns: 'he/him',
+  tagline: 'Mathematical Systems & Embedded Engineering Observatory',
+  bio: "i'm fascinating in coding some tools which can help world look supercalifragilisticexpialidocious",
+  avatarUrl: 'https://avatars.githubusercontent.com/u/121629080?v=4',
+  githubUrl: 'https://github.com/KH4NHTU0N9',
+  stats: Object.freeze({
+    publicRepos: 23,
+    followers: 1,
+    following: 0,
+  }),
+  socials: Object.freeze([
+    Object.freeze({
+      label: 'GitHub',
+      handle: '@KH4NHTU0N9',
+      url: 'https://github.com/KH4NHTU0N9',
+      allowMailto: false,
+    }),
+    Object.freeze({
+      label: 'Telegram',
+      handle: '@KH4NHTU0NG',
+      url: 'https://t.me/KH4NHTU0NG',
+      allowMailto: false,
+    }),
+    Object.freeze({
+      label: 'Facebook',
+      handle: 'khtwnq',
+      url: 'https://www.facebook.com/khtwnq',
+      allowMailto: false,
+    }),
+    Object.freeze({
+      label: 'Instagram',
+      handle: 'kosuykolaytien',
+      url: 'https://www.instagram.com/kosuykolaytien/',
+      allowMailto: false,
+    }),
+    Object.freeze({
+      label: 'Email',
+      handle: 'khanhtuong2302@gmail.com',
+      url: 'mailto:khanhtuong2302@gmail.com',
+      allowMailto: true,
+});
