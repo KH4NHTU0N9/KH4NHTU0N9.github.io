@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#040507" />
+    <meta name="theme-color" content="#020308" />
     <meta
       name="description"
       content="trankhanhtuong (@KH4NHTU0N9) — Embedded, Security & Systems Developer."
@@ -11,23 +11,23 @@
     <title>trankhanhtuong · @KH4NHTU0N9</title>
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23040507'/%3E%3Crect x='10' y='10' width='44' height='44' fill='none' stroke='%23f5f5f2' stroke-width='2.5'/%3E%3Cline x1='10' y1='32' x2='54' y2='32' stroke='%23ff4d00' stroke-width='2.5'/%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23020308'/%3E%3Crect x='10' y='10' width='44' height='44' fill='none' stroke='%23f5f5f2' stroke-width='2.5'/%3E%3Cline x1='10' y1='32' x2='54' y2='32' stroke='%23ff4d00' stroke-width='2.5'/%3E%3C/svg%3E"
     />
-    <link rel="stylesheet" href="./styles/main.css?v=gcs22" />
+    <link rel="stylesheet" href="./styles/main.css?v=gcs23" />
   </head>
   <body>
     <div id="app-shell" class="app-shell">
       <header class="top-bar">
         <div class="top-bar__brand">
           <span class="signal-led" aria-hidden="true"></span>
-          <span>KH4NHTU0N9 // GCS.MK2</span>
+          <span>KH4NHTU0N9 // ASCII.MATH</span>
         </div>
         <div id="top-telemetry" class="top-bar__telemetry" aria-hidden="true"></div>
-        <nav id="nav-controls" class="top-bar__controls" aria-label="Manifold preset and camera controls"></nav>
+        <nav id="nav-controls" class="top-bar__controls" aria-label="Scene preset and viewport controls"></nav>
       </header>
 
       <button id="zen-exit-btn" class="zen-exit-btn" type="button" hidden>
-        RETURN TO GCS [H]
+        RETURN [H]
       </button>
 
       <main class="cockpit-main">
@@ -54,25 +54,25 @@
                 <a class="grid-link" href="mailto:khanhtuong2302@gmail.com">EMAIL ↗</a>
               </nav>
               <noscript>
-                <p class="boot-warning">JavaScript is disabled. Enable JS to run interactive 3D/4D WebCanvas &amp; oscilloscope telemetry.</p>
+                <p class="boot-warning">JavaScript is disabled. Enable JS to run the 3D ASCII &amp; Math renderer.</p>
               </noscript>
             </div>
           </section>
 
-          <section id="viewport-pane" class="cockpit-viewport" aria-label="3D and 4D CAD viewport">
-            <div class="pane-header viewport-header">
-              <span class="pane-title">CAM_01 // MANIFOLD</span>
-              <span id="viewport-badge" class="pane-tag">01 · WAVE</span>
-            </div>
+          <section id="viewport-pane" class="cockpit-viewport" aria-label="3D volumetric ASCII and math canvas">
             <div id="canvas-stage" class="viewport-stage">
-              <canvas id="math-canvas" aria-label="Interactive 3D mathematical surface"></canvas>
-              <div class="viewport-hud viewport-hud--top">
-                <span id="viewport-eq" class="hud-eq">y(x,z,t) = Σ Aₙ·sin(kₙx + ωₙt + φz)</span>
-                <span class="hud-guide">DRAG ORBIT · CLICK RIPPLE · DBLCLICK RESET</span>
+              <canvas id="math-canvas" aria-label="Interactive 3D ASCII and mathematical surface"></canvas>
+              <div class="viewport-overlay viewport-overlay--top">
+                <span id="viewport-badge" class="viewport-pill">01 · WAVE · y(x,z,t)</span>
+                <div id="glyph-controls" class="glyph-switch" role="group" aria-label="Glyph rendering mode">
+                  <button type="button" class="glyph-btn is-active" data-glyph-mode="math" aria-pressed="true">MATH</button>
+                  <button type="button" class="glyph-btn" data-glyph-mode="ascii" aria-pressed="false">ASCII</button>
+                  <button type="button" class="glyph-btn" data-glyph-mode="binary" aria-pressed="false">BIN</button>
+                </div>
               </div>
-              <div class="viewport-hud viewport-hud--bottom">
-                <span id="viewport-attitude" class="hud-readout">AZ +025.8° · EL +016.0° · ZM 1.00×</span>
-                <span class="hud-tag">OPTICAL_PRISM // CAD</span>
+              <div class="viewport-overlay viewport-overlay--bottom">
+                <span id="viewport-attitude" class="viewport-pill viewport-pill--muted">AZ +025.8° · EL +016.0° · ZM 1.00×</span>
+                <span class="viewport-hint">HOVER SCATTER · CLICK SPARK · DRAG ORBIT</span>
               </div>
             </div>
           </section>
@@ -84,6 +84,6 @@
       <footer id="site-footer" class="colophon-bar"></footer>
     </div>
 
-    <script type="module" src="./src/main.js?v=gcs22"></script>
+    <script type="module" src="./src/main.js?v=gcs23"></script>
   </body>
 </html>

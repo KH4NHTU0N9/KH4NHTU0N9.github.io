@@ -1,4 +1,4 @@
-import { LANGUAGE_COLORS, PROFILE_DATA, isSafeExternalUrl } from '../data/profile.js?v=gcs22';
+import { LANGUAGE_COLORS, PROFILE_DATA, isSafeExternalUrl } from '../data/profile.js?v=gcs23';
 
 function createEl(tag, className, text) {
   const el = document.createElement(tag);
@@ -411,7 +411,7 @@ export class ProfileView {
     }
     this.footerRoot.textContent = '';
     this.footerRoot.appendChild(
-      createEl('span', 'colophon-item', `${this.profile.login} // GCS.MK2 · VANILLA-ESM`),
+      createEl('span', 'colophon-item', `${this.profile.login} // ASCII.MATH · VANILLA-ESM`),
     );
     this.footerRoot.appendChild(
       createEl(

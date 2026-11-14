@@ -100,10 +100,12 @@ button {
 #app-shell.is-zen .top-bar,
 #app-shell.is-zen .cockpit-console,
 #app-shell.is-zen .sections-stack,
-#app-shell.is-zen .colophon-bar,
-#app-shell.is-zen .viewport-header,
-#app-shell.is-zen .hud-guide {
+#app-shell.is-zen .colophon-bar {
   display: none;
+}
+
+#app-shell.is-zen .viewport-overlay--top {
+  padding-right: 148px;
 }
 
 #app-shell.is-zen .cockpit-viewport {
@@ -570,38 +572,18 @@ button {
   color: var(--text-invert);
 }
 
-/* Right CAD Viewport Pane */
+/* Right Volumetric ASCII/Math Viewport Pane */
+.cockpit-viewport {
+  background: #020308;
+}
+
 .viewport-stage {
   position: relative;
   flex: 1;
-  min-height: 460px;
+  min-height: 480px;
   overflow: hidden;
-  background: #050608;
+  background: #020308;
   touch-action: pan-y;
-}
-
-.viewport-stage::before,
-.viewport-stage::after {
-  content: '';
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  z-index: 3;
-  pointer-events: none;
-}
-
-.viewport-stage::before {
-  top: 8px;
-  left: 8px;
-  border-top: 1px solid var(--signal-orange);
-  border-left: 1px solid var(--signal-orange);
-}
-
-.viewport-stage::after {
-  right: 8px;
-  bottom: 8px;
-  border-right: 1px solid var(--signal-orange);
-  border-bottom: 1px solid var(--signal-orange);
 }
 
 #math-canvas {
@@ -617,43 +599,88 @@ button {
   display: block;
 }
 
-.viewport-hud {
+.viewport-overlay {
   position: absolute;
-  left: 16px;
-  right: 16px;
+  left: 12px;
+  right: 12px;
   z-index: 2;
   pointer-events: none;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px 12px;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: 0.66rem;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.06em;
 }
 
-.viewport-hud--top {
+.viewport-overlay--top {
   top: 12px;
+  flex-wrap: nowrap;
 }
 
-.viewport-hud--bottom {
-  bottom: 12px;
+.viewport-overlay--bottom {
+  bottom: 10px;
 }
 
-.hud-eq,
-.hud-readout {
-  padding: 3px 7px;
-  background: rgba(4, 5, 7, 0.78);
-  border: 1px solid var(--rule-hairline);
-  color: var(--text-primary);
+.viewport-pill {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(8, 12, 22, 0.56);
+  border: 1px solid rgba(160, 195, 255, 0.16);
+  color: rgba(235, 245, 255, 0.9);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.hud-guide,
-.hud-tag {
-  padding: 3px 7px;
-  background: rgba(4, 5, 7, 0.72);
-  color: var(--text-muted);
+.viewport-pill--muted {
+  color: rgba(190, 210, 235, 0.72);
+  font-size: 0.61rem;
+}
+
+.viewport-hint {
+  color: rgba(175, 200, 230, 0.56);
+  font-size: 0.61rem;
+  letter-spacing: 0.08em;
+}
+
+.glyph-switch {
+  flex: 0 0 auto;
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 999px;
+  background: rgba(8, 12, 22, 0.68);
+  border: 1px solid rgba(160, 195, 255, 0.18);
+  gap: 2px;
+}
+
+.glyph-btn {
+  padding: 4px 9px;
+  border-radius: 999px;
+  color: rgba(190, 212, 240, 0.72);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  transition: background-color 140ms ease, color 140ms ease;
+}
+
+.glyph-btn:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.glyph-btn.is-active {
+  background: rgba(255, 255, 255, 0.92);
+  color: #020308;
 }
 
 /* Lower Full-Width Modules & Repository Ledger */
@@ -1146,9 +1173,12 @@ button {
     font-size: clamp(1.9rem, 8.2vw, 2.9rem);
   }
 
-  .hud-guide,
-  .hud-tag {
+  .viewport-hint {
     display: none;
+  }
+
+  .viewport-pill {
+    max-width: calc(100vw - 56px);
   }
 
   .grid-link {

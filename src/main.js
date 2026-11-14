@@ -1,14 +1,16 @@
-import { ART_PRESETS, DEFAULT_ART_PARAMS, clamp } from './math/mathArt.js?v=gcs22';
-import { createCameraState } from './math/projection3d.js?v=gcs22';
-import { MathCanvasRenderer } from './math/renderer.js?v=gcs22';
-import { OscilloscopeRenderer } from './math/scopeRenderer.js?v=gcs22';
-import { PROFILE_DATA, fetchPublicReposWithFallback } from './data/profile.js?v=gcs22';
-import { ProfileView } from './ui/profileView.js?v=gcs22';
+import { DEFAULT_ART_PARAMS, clamp } from './math/mathArt.js?v=gcs23';
+import { ASCII_SCENE_SPECS, GLYPH_MODES, buildAsciiScene, createSkyField } from './math/asciiScene.js?v=gcs23';
+import { AsciiMathRenderer } from './math/asciiRenderer.js?v=gcs23';
+import { createCameraState } from './math/projection3d.js?v=gcs23';
+import { OscilloscopeRenderer } from './math/scopeRenderer.js?v=gcs23';
+import { PROFILE_DATA, fetchPublicReposWithFallback } from './data/profile.js?v=gcs23';
+import { ProfileView } from './ui/profileView.js?v=gcs23';
 
-const PRESET_ORDER = Object.keys(ART_PRESETS);
+const PRESET_ORDER = Object.keys(ASCII_SCENE_SPECS);
+const GLYPH_ORDER = Object.keys(GLYPH_MODES);
 
 function hasOwnPreset(presetId) {
-  return Object.prototype.hasOwnProperty.call(ART_PRESETS, presetId);
+  return Object.prototype.hasOwnProperty.call(ASCII_SCENE_SPECS, presetId);
 }
 
 function renderBootRecovery(message) {
@@ -53,14 +55,14 @@ function buildHeaderControls(navRoot, initialState, callbacks) {
   navRoot.textContent = '';
 
   const presetBtns = new Map();
-  for (const preset of Object.values(ART_PRESETS)) {
+  for (const spec of Object.values(ASCII_SCENE_SPECS)) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'nav-cell';
-    btn.dataset.presetId = preset.id;
-    btn.textContent = `${preset.code} ${preset.label.toUpperCase()}`;
-    btn.addEventListener('click', () => callbacks.onSelectPreset(preset.id));
-    presetBtns.set(preset.id, btn);
+    btn.dataset.presetId = spec.id;
+    btn.textContent = `${spec.code} ${spec.label.toUpperCase()}`;
+    btn.addEventListener('click', () => callbacks.onSelectPreset(spec.id));
+    presetBtns.set(spec.id, btn);
     navRoot.appendChild(btn);
   }
 
@@ -83,7 +85,7 @@ function buildHeaderControls(navRoot, initialState, callbacks) {
   soloBtn.type = 'button';
   soloBtn.className = 'nav-cell nav-cell--accent';
   soloBtn.textContent = 'SOLO [H]';
-  soloBtn.title = 'Fullscreen geometric viewport (H)';
+  soloBtn.title = 'Fullscreen ASCII/Math viewport (H)';
   soloBtn.addEventListener('click', () => callbacks.onToggleZen());
   navRoot.appendChild(soloBtn);
 
@@ -101,14 +103,46 @@ function buildHeaderControls(navRoot, initialState, callbacks) {
   return { sync };
 }
 
+function bindGlyphControls(glyphRoot, initialMode, onSelectGlyphMode) {
+  if (!glyphRoot) {
+    return { sync: () => {} };
+  }
+
+  const buttons = Array.from(glyphRoot.querySelectorAll('[data-glyph-mode]'));
+  glyphRoot.addEventListener('pointerdown', (ev) => {
+    ev.stopPropagation();
+  });
+
+  for (const btn of buttons) {
+    btn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const modeId = btn.dataset.glyphMode;
+      if (modeId) {
+        onSelectGlyphMode(modeId);
+      }
+    });
+  }
+
+  const sync = (glyphMode) => {
+    for (const btn of buttons) {
+      const active = btn.dataset.glyphMode === glyphMode;
+      btn.classList.toggle('is-active', active);
+      btn.setAttribute('aria-pressed', String(active));
+    }
+  };
+
+  sync(initialMode);
+  return { sync };
+}
+
 function initApp() {
   const appShell = document.getElementById('app-shell');
   const canvas = document.getElementById('math-canvas');
   const canvasStage = document.getElementById('canvas-stage');
   const navRoot = document.getElementById('nav-controls');
+  const glyphRoot = document.getElementById('glyph-controls');
   const telemetryRoot = document.getElementById('top-telemetry');
   const viewportBadgeEl = document.getElementById('viewport-badge');
-  const viewportEqEl = document.getElementById('viewport-eq');
   const viewportAttitudeEl = document.getElementById('viewport-attitude');
   const consoleRoot = document.getElementById('hero-content');
   const sectionsRoot = document.getElementById('profile-sections');
@@ -121,13 +155,14 @@ function initApp() {
   }
   const interactionStage = canvasStage || canvas;
   if (!canvas || !interactionStage) {
-    renderBootRecovery('WebCanvas element missing from cached document.');
+    renderBootRecovery('Canvas element missing from cached document.');
     return;
   }
 
   const reducedMotionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
   const state = {
     presetId: 'wave',
+    glyphMode: 'math',
     paused: Boolean(reducedMotionQuery?.matches),
     zen: false,
     camera: createCameraState(),
@@ -135,7 +170,10 @@ function initApp() {
     simTimeSec: 0,
   };
 
-  const renderer = new MathCanvasRenderer(canvas);
+  const skyField = createSkyField(2026);
+  const renderer = new AsciiMathRenderer(canvas);
+  renderer.setGlyphMode(state.glyphMode);
+
   const profileView = new ProfileView(
     { consoleRoot, sectionsRoot, footerRoot },
     PROFILE_DATA,
@@ -160,8 +198,11 @@ function initApp() {
     onToggleZen: () => setZenMode(!state.zen),
   });
 
+  const glyphUi = bindGlyphControls(glyphRoot, state.glyphMode, (modeId) => setGlyphMode(modeId));
+
   let lastHudSyncMs = 0;
   let lastScopeStats = { peak: 0, rms: 0 };
+  let lastGridStats = { cols: 0, rows: 0, activeGlyphs: 0 };
 
   function syncTelemetry(force = false) {
     const now = performance.now();
@@ -170,34 +211,34 @@ function initApp() {
     }
     lastHudSyncMs = now;
 
-    const preset = ART_PRESETS[state.presetId] || ART_PRESETS.wave;
+    const spec = ASCII_SCENE_SPECS[state.presetId] || ASCII_SCENE_SPECS.wave;
     const yawText = formatWrappedDeg(state.camera.yawRad);
     const pitchText = formatWrappedDeg(state.camera.pitchRad);
     const zoomText = `${state.camera.zoom.toFixed(2)}×`;
-    const phaseText = state.simTimeSec.toFixed(1).padStart(5, '0');
+    const gridText = `${lastGridStats.cols}×${lastGridStats.rows}`;
 
     if (telemetryRoot) {
-      telemetryRoot.textContent = `AZ ${yawText} · EL ${pitchText} · ZM ${zoomText} · T ${phaseText}s`;
+      telemetryRoot.textContent = `AZ ${yawText} · EL ${pitchText} · ZM ${zoomText} · ${gridText}`;
     }
     if (viewportBadgeEl) {
-      viewportBadgeEl.textContent = `${preset.code} · ${preset.label.toUpperCase()} · ${preset.topology}`;
-    }
-    if (viewportEqEl) {
-      viewportEqEl.textContent = preset.equation;
+      viewportBadgeEl.textContent = `${spec.code} · ${spec.label.toUpperCase()} · ${spec.equation}`;
     }
     if (viewportAttitudeEl) {
-      viewportAttitudeEl.textContent = `AZ ${yawText} · EL ${pitchText} · ZM ${zoomText}`;
+      viewportAttitudeEl.textContent = `AZ ${yawText} · EL ${pitchText} · ${gridText}`;
     }
     profileView.updateScopeReadout(lastScopeStats);
   }
 
   function renderFrameNow(forceTelemetry = false) {
-    const scene = renderer.render({
-      presetId: state.presetId,
-      camera: state.camera,
-      timeSec: state.simTimeSec,
-      params: state.params,
-    });
+    const scene = buildAsciiScene(state.presetId, state.simTimeSec, state.params);
+    const frameResult = renderer.render(scene, state.camera, skyField, state.simTimeSec);
+    if (frameResult) {
+      lastGridStats = {
+        cols: frameResult.cols || 0,
+        rows: frameResult.rows || 0,
+        activeGlyphs: frameResult.activeGlyphs || 0,
+      };
+    }
     if (scene && scopeRenderer && !state.zen) {
       lastScopeStats = scopeRenderer.render(scene);
     }
@@ -206,29 +247,37 @@ function initApp() {
 
   const activePointers = new Map();
   let dragMovedPx = 0;
-
   let rafId = null;
   let lastFrameMs = performance.now();
 
   const tick = (nowMs) => {
     rafId = null;
-    if (state.paused) {
+    const isRunning = !state.paused;
+    const hasBursts = renderer.hasActiveBursts();
+    if (!isRunning && !hasBursts) {
       return;
     }
+
     const dtSec = Math.min(0.05, Math.max(0.001, (nowMs - lastFrameMs) / 1000));
     lastFrameMs = nowMs;
 
-    const rate = state.params.speed;
-    state.simTimeSec += dtSec * rate;
-    if (activePointers.size === 0 && !reducedMotionQuery?.matches && rate > 0) {
-      state.camera.yawRad += dtSec * 0.22 * rate;
+    if (isRunning) {
+      const rate = state.params.speed;
+      state.simTimeSec += dtSec * rate;
+      if (activePointers.size === 0 && !reducedMotionQuery?.matches && rate > 0) {
+        state.camera.yawRad += dtSec * 0.22 * rate;
+      }
     }
+    if (hasBursts) {
+      renderer.stepBursts(dtSec);
+    }
+
     renderFrameNow();
     scheduleNextTick();
   };
 
   function scheduleNextTick() {
-    if (state.paused || rafId !== null) {
+    if ((state.paused && !renderer.hasActiveBursts()) || rafId !== null) {
       return;
     }
     lastFrameMs = performance.now();
@@ -251,11 +300,21 @@ function initApp() {
     renderFrameNow(true);
   }
 
+  function setGlyphMode(modeId) {
+    if (!Object.prototype.hasOwnProperty.call(GLYPH_MODES, modeId)) {
+      return;
+    }
+    state.glyphMode = modeId;
+    renderer.setGlyphMode(modeId);
+    glyphUi.sync(modeId);
+    renderFrameNow(true);
+  }
+
   function togglePause() {
     state.paused = !state.paused;
     nav.sync(state);
     syncTelemetry(true);
-    if (state.paused) {
+    if (state.paused && !renderer.hasActiveBursts()) {
       stopAnimationLoop();
     } else {
       scheduleNextTick();
@@ -273,7 +332,6 @@ function initApp() {
     state.zen = Boolean(enabled);
     appShell.classList.toggle('is-zen', state.zen);
     document.body.classList.toggle('is-zen-lock', state.zen);
-    renderer.setZenMode(state.zen);
     if (zenExitBtn) {
       zenExitBtn.hidden = !state.zen;
     }
@@ -284,7 +342,23 @@ function initApp() {
     });
   }
 
-  // Orbit & ripple inside the dedicated CAD viewport stage
+  function getCanvasUv(ev) {
+    const rect = canvas.getBoundingClientRect();
+    const w = Math.max(1, rect.width);
+    const h = Math.max(1, rect.height);
+    const inside =
+      rect.width > 0 &&
+      rect.height > 0 &&
+      ev.clientX >= rect.left &&
+      ev.clientX <= rect.right &&
+      ev.clientY >= rect.top &&
+      ev.clientY <= rect.bottom;
+    return {
+      u: clamp((ev.clientX - rect.left) / w, 0, 1),
+      v: clamp((ev.clientY - rect.top) / h, 0, 1),
+      inside,
+    };
+  }
 
   const clearPointers = () => {
     if (activePointers.size > 0) {
@@ -294,25 +368,34 @@ function initApp() {
   };
 
   interactionStage.addEventListener('pointerdown', (ev) => {
+    if (ev.target?.closest?.('#glyph-controls')) {
+      return;
+    }
     activePointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
     dragMovedPx = 0;
     document.body.classList.add('is-orbiting');
   });
 
   window.addEventListener('pointermove', (ev) => {
-    renderer.setPointerPosition(ev.clientX, ev.clientY, true);
-    if (!activePointers.has(ev.pointerId)) {
+    const { u, v, inside } = getCanvasUv(ev);
+    renderer.setCursorUv(u, v, inside);
+
+    if (activePointers.has(ev.pointerId)) {
+      const prev = activePointers.get(ev.pointerId);
+      const dx = ev.clientX - prev.x;
+      const dy = ev.clientY - prev.y;
+      activePointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+
+      dragMovedPx += Math.hypot(dx, dy);
+      state.camera.yawRad += dx * 0.008;
+      state.camera.pitchRad = clamp(state.camera.pitchRad + dy * 0.0068, -1.25, 1.25);
+      renderFrameNow();
       return;
     }
-    const prev = activePointers.get(ev.pointerId);
-    const dx = ev.clientX - prev.x;
-    const dy = ev.clientY - prev.y;
-    activePointers.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
 
-    dragMovedPx += Math.hypot(dx, dy);
-    state.camera.yawRad += dx * 0.008;
-    state.camera.pitchRad = clamp(state.camera.pitchRad + dy * 0.0068, -1.25, 1.25);
-    renderFrameNow();
+    if (state.paused && inside && !renderer.hasActiveBursts()) {
+      renderFrameNow();
+    }
   });
 
   const endPointer = (ev) => {
@@ -321,22 +404,36 @@ function initApp() {
     if (activePointers.size === 0) {
       document.body.classList.remove('is-orbiting');
       if (hadPointer && dragMovedPx < 6) {
-        renderer.triggerWavePulse(ev.clientX, ev.clientY, state.simTimeSec);
+        const { u, v } = getCanvasUv(ev);
+        renderer.triggerBurst(u, v, (state.simTimeSec * 0.25) % 1);
         renderFrameNow();
+        scheduleNextTick();
       }
     }
   };
 
   window.addEventListener('pointerup', endPointer);
   window.addEventListener('pointercancel', endPointer);
-  window.addEventListener('blur', clearPointers);
+  window.addEventListener('blur', () => {
+    clearPointers();
+    renderer.setCursorUv(0.5, 0.5, false);
+    if (state.paused && !renderer.hasActiveBursts()) {
+      renderFrameNow();
+    }
+  });
   interactionStage.addEventListener('lostpointercapture', clearPointers);
   interactionStage.addEventListener('contextmenu', clearPointers);
   interactionStage.addEventListener('mouseleave', () => {
-    renderer.setPointerPosition(0, 0, false);
+    renderer.setCursorUv(0.5, 0.5, false);
+    if (state.paused && !renderer.hasActiveBursts()) {
+      renderFrameNow();
+    }
   });
 
-  interactionStage.addEventListener('dblclick', () => {
+  interactionStage.addEventListener('dblclick', (ev) => {
+    if (ev.target?.closest?.('#glyph-controls')) {
+      return;
+    }
     resetAll();
   });
 
@@ -355,6 +452,9 @@ function initApp() {
       resetAll();
     } else if (key === 'h') {
       setZenMode(!state.zen);
+    } else if (key === 'g') {
+      const nextIdx = (GLYPH_ORDER.indexOf(state.glyphMode) + 1) % GLYPH_ORDER.length;
+      setGlyphMode(GLYPH_ORDER[nextIdx]);
     } else if (key === 'escape' && state.zen) {
       setZenMode(false);
     } else if (/^[1-3]$/.test(key)) {
