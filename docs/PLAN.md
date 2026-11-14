@@ -49,3 +49,5 @@
 - [x] `node --test tests/*.test.mjs`: 10/10 tests pass (`integrators.test.mjs`, `profileData.test.mjs`, `projection3d.test.mjs`).
 - [x] Headless Chrome audit (`1440×900` Desktop & `390×844` Mobile): `0` console error, `0` uncaught exception, `scrollWidth <= innerWidth` trên cả Desktop & Mobile, Zen mode, chuyển 4 mô hình toán và live GitHub API hydration hoạt động chuẩn.
 
+## Phase 5: Closure (Đóng dự án)
+- [x] Hoàn tất commit nguyên tử sạch sẽ và bàn giao hướng dẫn tạo repo `KH4NHTU0N9.github.io` trên GitHub, đẩy nhánh `main` để kích hoạt `https://kh4nhtu0n9.github.io/`.
