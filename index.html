@@ -1,43 +1,43 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-aura="aurora">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#06080f" />
+    <meta name="theme-color" content="#04060f" />
     <meta
       name="description"
-      content="KH4NHTU0N9 (trankhanhtuong) — Interactive 3D Mathematical Attractors & Engineering Profile on GitHub Pages."
+      content="KH4NHTU0N9 (trankhanhtuong) — Embedded, Security & Systems Developer Profile powered by Interactive Web Mathematics."
     />
-    <title>KH4NHTU0N9 · Mathematical Observatory</title>
+    <title>trankhanhtuong · @KH4NHTU0N9</title>
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23070b14'/%3E%3Cellipse cx='32' cy='32' rx='22' ry='11' transform='rotate(-26 32 32)' fill='none' stroke='%2338bdf8' stroke-width='3'/%3E%3Cellipse cx='32' cy='32' rx='22' ry='11' transform='rotate(26 32 32)' fill='none' stroke='%2334d399' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='4' fill='%23f0f9ff'/%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23050814'/%3E%3Cellipse cx='32' cy='32' rx='22' ry='11' transform='rotate(-28 32 32)' fill='none' stroke='%2322d3ee' stroke-width='3'/%3E%3Cellipse cx='32' cy='32' rx='22' ry='11' transform='rotate(28 32 32)' fill='none' stroke='%23f472b6' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='4.5' fill='%23ffffff'/%3E%3C/svg%3E"
     />
     <link rel="stylesheet" href="./styles/main.css" />
   </head>
   <body>
     <div id="app-shell" class="app-shell">
-      <main class="observatory-layout">
-        <section class="math-stage-grid" aria-label="Interactive 3D Mathematics Canvas and Parameters">
-          <div id="canvas-stage" class="canvas-stage">
-            <canvas id="math-canvas" aria-label="Interactive 3D mathematical phase-space plot"></canvas>
+      <main class="page-main">
+        <section id="hero-stage" class="hero-stage" aria-label="Developer Introduction & Generative Canvas">
+          <canvas id="math-canvas" aria-label="Interactive 3D generative geometry"></canvas>
+          <div class="hero-scrim" aria-hidden="true"></div>
 
-            <div class="canvas-hud canvas-hud--top">
-              <span id="hud-model-badge" class="hud-pill">@KH4NHTU0N9 · LORENZ ATTRACTOR</span>
-              <button id="zen-exit-btn" class="hud-pill hud-pill--action" type="button" hidden>
-                Exit Zen (H)
-              </button>
-            </div>
+          <button id="zen-exit-btn" class="zen-exit-pill" type="button" hidden>
+            Back to Profile (H)
+          </button>
 
-            <div class="canvas-hud canvas-hud--bottom">
-              <span class="hud-hint">Drag orbit · Scroll/pinch zoom · Click wave · [1–4] switch · [H] Zen</span>
-            </div>
+          <div id="hero-content" class="hero-content"></div>
+
+          <div class="hero-dock-wrap">
+            <div id="visual-dock" class="visual-dock" aria-label="Visual style switcher"></div>
           </div>
-
-          <aside id="equation-panel" class="glass-card equation-panel" aria-label="Mathematical controls"></aside>
         </section>
 
-        <section id="profile-view" class="profile-view" aria-label="Developer portfolio"></section>
+        <section id="profile-sections" class="profile-sections" aria-label="Tech stack and repositories"></section>
+
+        <footer class="site-footer">
+          <span class="footer-note">@KH4NHTU0N9 · Drawn with Pure Web Mathematics · Zero Dependencies</span>
+        </footer>
       </main>
     </div>
 
