@@ -236,4 +236,27 @@ export const PROFILE_DATA = Object.freeze({
       updatedAt: '2026-04-28T19:04:33Z',
     }),
   ]),
+  mathNotes: Object.freeze([
+    Object.freeze({
+      title: '4th-Order Runge-Kutta (RK4)',
+      summary:
+        'ODE attractors evaluate four midpoint slopes per step, keeping local truncation error O(h^5) without third-party math libraries.',
+      reference: 'Press et al., Numerical Recipes — ODE Integration',
+      url: 'https://en.wikipedia.org/wiki/Runge%E2%80%93Kutta_methods',
+    }),
+    Object.freeze({
+      title: 'Lorenz & Halvorsen Strange Attractors',
+      summary:
+        'Non-linear coupled differential equations produce deterministic chaos on bounded phase-space manifolds.',
+      reference: 'Lorenz (1963), Deterministic Nonperiodic Flow',
+      url: 'https://en.wikipedia.org/wiki/Lorenz_system',
+    }),
+    Object.freeze({
+      title: 'Pure Perspective Projection',
+      summary:
+        'World coordinates rotate via yaw/pitch orthogonal matrices before perspective division mapped to Retina Canvas 2D pixels.',
+      reference: 'MDN Web Docs — CanvasRenderingContext2D',
+      url: 'https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D',
+    }),
+  ]),
 });
