@@ -283,3 +283,82 @@ function sampleTorusKnot(rawParams, timeSec) {
     derivativeSample,
   };
 }
+
+function sampleMobiusSurface(rawParams, timeSec) {
+  const twists = clamp(Math.round(rawParams.twists ?? 1), 1, 5);
+  const halfWidth = clamp(rawParams.width ?? 0.34, 0.16, 0.5);
+  const R = 0.78;
+  const phase = timeSec * 1.2;
+
+  const strandVs = [-halfWidth, -halfWidth * 0.5, 0, halfWidth * 0.5, halfWidth];
+  const loopSteps = 220;
+  const ribPairs = 36;
+  const totalCount = strandVs.length * loopSteps + ribPairs * 2;
+  const points = new Float32Array(totalCount * 3);
+  const speeds = new Float32Array(totalCount);
+  const polylines = [];
+
+  const evalSurf = (u, v) => {
+    const twistAngle = (twists * u) / 2;
+    const rad = R + v * Math.cos(twistAngle);
+    const x = rad * Math.cos(u);
+    const y = v * Math.sin(twistAngle) + 0.09 * Math.sin(2 * u + phase);
+    const z = rad * Math.sin(u);
+    return [x, y, z];
+  };
+
+  let cursor = 0;
+  for (let s = 0; s < strandVs.length; s++) {
+    const v = strandVs[s];
+    const start = cursor;
+    for (let i = 0; i < loopSteps; i++) {
+      const u = (i / loopSteps) * TAU * 2;
+      const [x, y, z] = evalSurf(u, v);
+      const i3 = cursor * 3;
+      points[i3] = x;
+      points[i3 + 1] = y;
+      points[i3 + 2] = z;
+      speeds[cursor] = 0.35 + 0.55 * (1 - Math.abs(v) / (halfWidth + 0.01));
+      cursor++;
+    }
+    polylines.push({ start, count: loopSteps, closed: true });
+  }
+
+  for (let r = 0; r < ribPairs; r++) {
+    const u = (r / ribPairs) * TAU;
+    const start = cursor;
+    for (const v of [-halfWidth, halfWidth]) {
+      const [x, y, z] = evalSurf(u, v);
+      const i3 = cursor * 3;
+      points[i3] = x;
+      points[i3 + 1] = y;
+      points[i3 + 2] = z;
+      speeds[cursor] = 0.22;
+      cursor++;
+    }
+    polylines.push({ start, count: 2, closed: false });
+  }
+
+  const probeU = (timeSec * 1.4) % (TAU * 2);
+  const stateSample = evalSurf(probeU, 0);
+  const probeNext = evalSurf(probeU + 0.01, 0);
+  const derivativeSample = [
+    (probeNext[0] - stateSample[0]) / 0.01,
+    (probeNext[1] - stateSample[1]) / 0.01,
+    (probeNext[2] - stateSample[2]) / 0.01,
+  ];
+  const headOffset = Math.floor(((probeU / (TAU * 2)) % 1) * loopSteps);
+
+  return {
+    points,
+    speeds,
+    polylines,
+    headIndices: [
+      headOffset,
+      loopSteps * 2 + headOffset,
+      loopSteps * 4 + ((headOffset + Math.floor(loopSteps * 0.5)) % loopSteps),
+    ],
+    stateSample,
+    derivativeSample,
+  };
+}
