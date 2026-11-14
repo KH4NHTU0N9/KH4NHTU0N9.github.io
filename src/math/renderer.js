@@ -54,3 +54,37 @@ export const COLOR_THEMES = Object.freeze({
     pulseRing: 'rgba(134, 239, 172, ',
   }),
 });
+
+const LUT_SIZE = 32;
+const POINTER_DEFLECT_RADIUS_PX = 108;
+const POINTER_DEFLECT_STRENGTH_PX = 16;
+const PULSE_LIFETIME_SEC = 1.15;
+const MAX_ACTIVE_PULSES = 6;
+
+function buildColorLut(stops, alpha) {
+  const lut = new Array(LUT_SIZE);
+  const segCount = stops.length - 1;
+  for (let i = 0; i < LUT_SIZE; i++) {
+    const t = i / (LUT_SIZE - 1);
+    const scaled = t * segCount;
+    const idx = Math.min(segCount - 1, Math.floor(scaled));
+    const localT = scaled - idx;
+    const c0 = stops[idx];
+    const c1 = stops[idx + 1];
+    const r = Math.round(c0[0] + (c1[0] - c0[0]) * localT);
+    const g = Math.round(c0[1] + (c1[1] - c0[1]) * localT);
+    const b = Math.round(c0[2] + (c1[2] - c0[2]) * localT);
+    lut[i] = `rgba(${r},${g},${b},${alpha})`;
+  }
+  return lut;
+}
+
+const THEME_LUTS = new Map(
+  Object.values(COLOR_THEMES).map((theme) => [
+    theme.id,
+    {
+      core: buildColorLut(theme.stops, 0.92),
+      halo: buildColorLut(theme.stops, 0.2),
+    },
+  ]),
+);
