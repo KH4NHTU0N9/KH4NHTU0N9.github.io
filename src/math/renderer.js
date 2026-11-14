@@ -357,4 +357,67 @@ export class MathCanvasRenderer {
       this.projVis[i] = 1;
     }
   }
+
+  drawPolylines(ctx, scene, paletteLut, lineWidth) {
+    ctx.save();
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    const lastIdx = LUT_SIZE - 1;
+    const { speeds, polylines } = scene;
+
+    for (const poly of polylines) {
+      const end = poly.start + poly.count;
+      let activeBucket = -1;
+      let pathOpen = false;
+
+      for (let i = poly.start; i < end - 1; i++) {
+        if (!this.projVis[i] || !this.projVis[i + 1]) {
+          if (pathOpen) {
+            ctx.stroke();
+            pathOpen = false;
+            activeBucket = -1;
+          }
+          continue;
+        }
+
+        const colorMix = clamp(speeds[i] * 0.72 + this.projDepth[i] * 0.28, 0, 1);
+        const bucket = Math.min(lastIdx, Math.floor(colorMix * LUT_SIZE));
+
+        if (!pathOpen || bucket !== activeBucket) {
+          if (pathOpen) {
+            ctx.stroke();
+          }
+          ctx.strokeStyle = paletteLut[bucket];
+          ctx.beginPath();
+          ctx.moveTo(this.projX[i], this.projY[i]);
+          activeBucket = bucket;
+          pathOpen = true;
+        }
+        ctx.lineTo(this.projX[i + 1], this.projY[i + 1]);
+      }
+
+      if (poly.closed && poly.count > 2) {
+        const first = poly.start;
+        const last = end - 1;
+        if (this.projVis[last] && this.projVis[first]) {
+          if (!pathOpen) {
+            const bucket = Math.min(lastIdx, Math.floor(clamp(speeds[last], 0, 1) * LUT_SIZE));
+            ctx.strokeStyle = paletteLut[bucket];
+            ctx.beginPath();
+            ctx.moveTo(this.projX[last], this.projY[last]);
+            pathOpen = true;
+          }
+          ctx.lineTo(this.projX[first], this.projY[first]);
+        }
+      }
+
+      if (pathOpen) {
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
+  }
 }
