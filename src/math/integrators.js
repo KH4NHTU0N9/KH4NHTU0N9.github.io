@@ -72,6 +72,19 @@ export const MATH_MODELS = Object.freeze({
       { key: 'beta', label: 'β', min: 1.0, max: 4.5, step: 0.05, default: 2.67 },
     ],
   },
+  halvorsen: {
+    id: 'halvorsen',
+    name: 'Halvorsen Attractor',
+    subtitle: 'Cyclic 3-Fold Chaotic Symmetry',
+    kind: 'ode',
+    equations: [
+      'dx/dt = −ax − 4y − 4z − y²',
+      'dy/dt = −ay − 4z − 4x − z²',
+      'dz/dt = −az − 4x − 4y − x²',
+    ],
+    params: [{ key: 'a', label: 'a', min: 1.25, max: 1.95, step: 0.02, default: 1.4 }],
+  },
+  },
 });
 
 export function getDefaultParams(modelId) {
