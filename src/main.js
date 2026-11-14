@@ -249,5 +249,38 @@ function initApp() {
       renderFrameNow(false);
     });
   }
+
+  // Main animation loop
+  let lastFrameMs = performance.now();
+  const tick = (nowMs) => {
+    const dtSec = Math.min(0.05, Math.max(0.001, (nowMs - lastFrameMs) / 1000));
+    lastFrameMs = nowMs;
+
+    if (!state.paused) {
+      state.simTimeSec += dtSec;
+      if (activePointers.size === 0 && !reducedMotionQuery?.matches) {
+        state.camera.yawRad += dtSec * 0.22;
+      }
+      renderFrameNow(false);
+    }
+    requestAnimationFrame(tick);
+  };
+
+  updateHudTitle();
+  renderer.resize();
+  renderFrameNow(true);
+  requestAnimationFrame(tick);
+
+  // Hydrate latest public non-fork repositories asynchronously without blocking paint
+  fetchPublicReposWithFallback(PROFILE_DATA.login, { limit: 6 }).then(({ repos, source }) => {
+    if (source === 'live') {
+      profileView.renderRepos(repos, 'live');
+    }
+  });
 }
-initApp();
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initApp, { once: true });
+} else {
+  initApp();
+}
