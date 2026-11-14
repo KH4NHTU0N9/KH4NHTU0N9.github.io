@@ -39,3 +39,15 @@ export function rk4Step(state, dt, derivativeFn) {
 
   return { next: [nx, ny, nz], derivative: k1, speed };
 }
+
+function lorenzDerivative(sigma, rho, beta) {
+  return (x, y, z) => [sigma * (y - x), x * (rho - z) - y, x * y - beta * z];
+}
+
+function halvorsenDerivative(a) {
+  return (x, y, z) => [
+    -a * x - 4 * y - 4 * z - y * y,
+    -a * y - 4 * z - 4 * x - z * z,
+    -a * z - 4 * x - 4 * y - x * x,
+  ];
+}
