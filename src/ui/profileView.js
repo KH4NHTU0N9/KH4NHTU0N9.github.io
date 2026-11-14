@@ -1,4 +1,4 @@
-import { LANGUAGE_COLORS, PROFILE_DATA, isSafeExternalUrl } from '../data/profile.js';
+import { LANGUAGE_COLORS, PROFILE_DATA, isSafeExternalUrl } from '../data/profile.js?v=gcs22';
 
 function createEl(tag, className, text) {
   const el = document.createElement(tag);
@@ -41,10 +41,10 @@ export class ProfileView {
    * @param {typeof PROFILE_DATA} [profile]
    * @param {{ onParamChange?: (key: string, val: number) => void }} [callbacks]
    */
-  constructor({ consoleRoot, sectionsRoot, footerRoot }, profile = PROFILE_DATA, callbacks = {}) {
-    this.consoleRoot = consoleRoot;
-    this.sectionsRoot = sectionsRoot;
-    this.footerRoot = footerRoot;
+  constructor({ consoleRoot, heroRoot, sectionsRoot, footerRoot } = {}, profile = PROFILE_DATA, callbacks = {}) {
+    this.consoleRoot = consoleRoot || heroRoot || null;
+    this.sectionsRoot = sectionsRoot || null;
+    this.footerRoot = footerRoot || null;
     this.profile = profile;
     this.callbacks = callbacks;
 
@@ -71,6 +71,9 @@ export class ProfileView {
   }
 
   renderConsole() {
+    if (!this.consoleRoot) {
+      return;
+    }
     this.consoleRoot.textContent = '';
 
     const bar = createEl('div', 'pane-header');
@@ -89,6 +92,13 @@ export class ProfileView {
       avatar.className = 'hero-avatar';
       avatar.width = 58;
       avatar.height = 58;
+      avatar.addEventListener(
+        'error',
+        () => {
+          avatarFrame.remove();
+        },
+        { once: true },
+      );
       avatarFrame.appendChild(avatar);
       identityStrip.appendChild(avatarFrame);
     }
@@ -189,6 +199,9 @@ export class ProfileView {
   }
 
   renderSectionsBase() {
+    if (!this.sectionsRoot) {
+      return;
+    }
     this.sectionsRoot.textContent = '';
 
     // 01 // Capability Matrix
@@ -277,6 +290,9 @@ export class ProfileView {
    * @param {string} domainId
    */
   renderDomains(domainId) {
+    if (!this.indexGridEl) {
+      return;
+    }
     this.activeDomainId = domainId;
     for (const [id, btn] of this.domainButtons.entries()) {
       const active = id === domainId;
@@ -390,6 +406,9 @@ export class ProfileView {
   }
 
   renderFooter() {
+    if (!this.footerRoot) {
+      return;
+    }
     this.footerRoot.textContent = '';
     this.footerRoot.appendChild(
       createEl('span', 'colophon-item', `${this.profile.login} // GCS.MK2 · VANILLA-ESM`),
