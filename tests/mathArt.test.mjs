@@ -43,3 +43,13 @@ test('sampleMathArtScene defaults cleanly on invalid preset or NaN time', () => 
   assert.equal(scene.preset, 'wave');
   assert.ok(Number.isFinite(scene.points[0]));
 });
+
+test('sampleMathArtScene modulates geometry safely across extreme parameters', () => {
+  for (const presetId of Object.keys(ART_PRESETS)) {
+    const modulated = sampleMathArtScene(presetId, 1.5, { freq: 99, amp: -5 });
+    for (let i = 0; i < modulated.points.length; i++) {
+      assert.ok(Number.isFinite(modulated.points[i]));
+      assert.ok(Math.abs(modulated.points[i]) < 4.5);
+    }
+  }
+});
