@@ -14,3 +14,9 @@ test('projectPoint3D projects origin cleanly inside viewport center', () => {
   assert.ok(Math.abs(pt.sy - 400) < 1e-6);
   assert.ok(pt.zCam > 3);
 });
+
+test('projectPoint3D rejects points behind near clip plane', () => {
+  const cam = { ...createCameraState(), yawRad: 0, pitchRad: 0 };
+  const behind = projectPoint3D(0, 0, -5, 1000, 800, cam);
+  assert.equal(behind.visible, false);
+});
