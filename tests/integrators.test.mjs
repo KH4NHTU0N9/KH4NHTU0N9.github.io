@@ -16,3 +16,20 @@ test('rk4Step matches exact exponential decay y\' = -y to 1e-6 accuracy', () => 
   }
   assert.ok(Math.abs(state[0] - Math.exp(-1)) < 1e-6);
 });
+
+test('all math models produce bounded finite coordinates without NaN', () => {
+  for (const id of Object.keys(MATH_MODELS)) {
+    const params = getDefaultParams(id);
+    const result = sampleMathScene(id, params, 2.5, 900);
+    assert.ok(result.points.length > 0);
+    assert.ok(result.polylines.length > 0);
+    assert.ok(result.headIndices.length > 0);
+    for (let i = 0; i < result.points.length; i++) {
+      assert.ok(Number.isFinite(result.points[i]), `${id} emitted non-finite point at ${i}`);
+      assert.ok(Math.abs(result.points[i]) < 5, `${id} coordinate blew up: ${result.points[i]}`);
+    }
+    for (const s of result.speeds) {
+      assert.ok(Number.isFinite(s) && s >= 0 && s <= 1);
+    }
+  }
+});
