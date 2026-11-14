@@ -6,6 +6,13 @@ import { ProfileView } from './ui/profileView.js';
 
 const PRESET_ORDER = Object.keys(ART_PRESETS);
 
+function formatWrappedDeg(rad) {
+  let deg = (rad * 180) / Math.PI;
+  deg = ((((deg + 180) % 360) + 360) % 360) - 180;
+  const sign = deg >= 0 ? '+' : '-';
+  return `${sign}${Math.abs(deg).toFixed(1).padStart(5, '0')}°`;
+}
+
 function buildHeaderControls(navRoot, initialState, callbacks) {
   navRoot.textContent = '';
 
@@ -27,6 +34,14 @@ function buildHeaderControls(navRoot, initialState, callbacks) {
   pauseBtn.title = 'Toggle animation (Space)';
   pauseBtn.addEventListener('click', () => callbacks.onTogglePause());
   navRoot.appendChild(pauseBtn);
+
+  const resetBtn = document.createElement('button');
+  resetBtn.type = 'button';
+  resetBtn.className = 'nav-cell';
+  resetBtn.textContent = 'RESET';
+  resetBtn.title = 'Reset camera attitude (R)';
+  resetBtn.addEventListener('click', () => callbacks.onResetCamera());
+  navRoot.appendChild(resetBtn);
 
   const soloBtn = document.createElement('button');
   soloBtn.type = 'button';
@@ -54,6 +69,7 @@ function initApp() {
   const appShell = document.getElementById('app-shell');
   const canvas = document.getElementById('math-canvas');
   const navRoot = document.getElementById('nav-controls');
+  const telemetryRoot = document.getElementById('top-telemetry');
   const heroRoot = document.getElementById('hero-content');
   const sectionsRoot = document.getElementById('profile-sections');
   const footerRoot = document.getElementById('site-footer');
@@ -78,21 +94,49 @@ function initApp() {
   const nav = buildHeaderControls(navRoot, state, {
     onSelectPreset: (presetId) => switchPreset(presetId),
     onTogglePause: () => togglePause(),
+    onResetCamera: () => resetCamera(),
     onToggleZen: () => setZenMode(!state.zen),
   });
+
+  let lastHudSyncMs = 0;
+  function syncTelemetry(force = false) {
+    const now = performance.now();
+    if (!force && now - lastHudSyncMs < 100) {
+      return;
+    }
+    lastHudSyncMs = now;
+
+    const preset = ART_PRESETS[state.presetId] || ART_PRESETS.wave;
+    const yawText = formatWrappedDeg(state.camera.yawRad);
+    const pitchText = formatWrappedDeg(state.camera.pitchRad);
+    const phaseText = state.simTimeSec.toFixed(1).padStart(5, '0');
+
+    if (telemetryRoot) {
+      telemetryRoot.textContent = `AZ ${yawText} · EL ${pitchText} · T ${phaseText}s`;
+    }
+    profileView.updateManifoldTelemetry({
+      code: preset.code,
+      label: preset.label,
+      specTitle: preset.specTitle,
+      equation: preset.equation,
+      topology: preset.topology,
+      yawText,
+    });
+  }
 
   function computeScrollProgress() {
     const scrollable = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
     return clamp(window.scrollY / scrollable, 0, 1);
   }
 
-  function renderFrameNow() {
+  function renderFrameNow(forceTelemetry = false) {
     renderer.render({
       presetId: state.presetId,
       camera: state.camera,
       timeSec: state.simTimeSec,
       scrollProgress: computeScrollProgress(),
     });
+    syncTelemetry(forceTelemetry);
   }
 
   function switchPreset(presetId) {
@@ -101,17 +145,18 @@ function initApp() {
     }
     state.presetId = presetId;
     nav.sync(state);
-    renderFrameNow();
+    renderFrameNow(true);
   }
 
   function togglePause() {
     state.paused = !state.paused;
     nav.sync(state);
+    syncTelemetry(true);
   }
 
   function resetCamera() {
     state.camera = createCameraState();
-    renderFrameNow();
+    renderFrameNow(true);
   }
 
   function setZenMode(enabled) {
@@ -236,7 +281,7 @@ function initApp() {
   };
 
   renderer.resize();
-  renderFrameNow();
+  renderFrameNow(true);
   requestAnimationFrame(tick);
 
   fetchPublicReposWithFallback(PROFILE_DATA.login, { limit: 6 }).then(({ repos, source }) => {
