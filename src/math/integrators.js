@@ -84,6 +84,36 @@ export const MATH_MODELS = Object.freeze({
     ],
     params: [{ key: 'a', label: 'a', min: 1.25, max: 1.95, step: 0.02, default: 1.4 }],
   },
+  torusKnot: {
+    id: 'torusKnot',
+    name: 'Harmonic Torus Knot',
+    subtitle: 'Parametric (p, q) Topological Braid',
+    kind: 'parametric',
+    equations: [
+      'r(t) = R + r₀cos(qt)',
+      'x(t) = r(t)cos(pt)',
+      'y(t) = r₀sin(qt) + 0.12sin(3t + φ),  z(t) = r(t)sin(pt)',
+    ],
+    params: [
+      { key: 'p', label: 'p', min: 2, max: 7, step: 1, default: 3 },
+      { key: 'q', label: 'q', min: 2, max: 9, step: 1, default: 5 },
+      { key: 'minor', label: 'r₀', min: 0.16, max: 0.44, step: 0.02, default: 0.3 },
+    ],
+  },
+  mobius: {
+    id: 'mobius',
+    name: 'Möbius Phase Surface',
+    subtitle: 'Non-Orientable Geodesic Manifold',
+    kind: 'parametric',
+    equations: [
+      'x(u,v) = (R + v·cos(u/2))cos(u)',
+      'y(u,v) = v·sin(u/2) + 0.10·sin(2u + φ)',
+      'z(u,v) = (R + v·cos(u/2))sin(u)',
+    ],
+    params: [
+      { key: 'twists', label: 'k', min: 1, max: 5, step: 1, default: 1 },
+      { key: 'width', label: 'v', min: 0.18, max: 0.48, step: 0.02, default: 0.34 },
+    ],
   },
 });
 
