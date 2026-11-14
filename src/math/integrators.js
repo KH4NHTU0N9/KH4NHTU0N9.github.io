@@ -218,3 +218,68 @@ function sampleOdeTrajectory(modelId, rawParams, timeSec, sampleCount) {
     derivativeSample: [cached.rawDerivs[p3], cached.rawDerivs[p3 + 1], cached.rawDerivs[p3 + 2]],
   };
 }
+
+function sampleTorusKnot(rawParams, timeSec) {
+  const p = clamp(Math.round(rawParams.p ?? 3), 2, 7);
+  const q = clamp(Math.round(rawParams.q ?? 5), 2, 9);
+  const minor = clamp(rawParams.minor ?? 0.3, 0.14, 0.46);
+  const major = 0.74;
+  const phase = timeSec * 1.15;
+
+  const mainCount = 720;
+  const harmonicOffset = 0.065;
+  const totalCount = mainCount * 2;
+  const points = new Float32Array(totalCount * 3);
+  const speeds = new Float32Array(totalCount);
+
+  let stateSample = [0, 0, 0];
+  let derivativeSample = [0, 0, 0];
+
+  const evalKnot = (t, ampBoost) => {
+    const r = major + (minor + ampBoost) * Math.cos(q * t);
+    const x = r * Math.cos(p * t);
+    const y = (minor + ampBoost) * Math.sin(q * t) + 0.12 * Math.sin(3 * t + phase);
+    const z = r * Math.sin(p * t);
+    return [x, y, z];
+  };
+
+  for (let strand = 0; strand < 2; strand++) {
+    const baseIdx = strand * mainCount;
+    const ampBoost = strand === 0 ? 0 : harmonicOffset;
+    for (let i = 0; i < mainCount; i++) {
+      const t = (i / mainCount) * TAU;
+      const [x, y, z] = evalKnot(t, ampBoost);
+      const [nx, ny, nz] = evalKnot(t + 0.008, ampBoost);
+      const vx = (nx - x) / 0.008;
+      const vy = (ny - y) / 0.008;
+      const vz = (nz - z) / 0.008;
+
+      const idx = baseIdx + i;
+      const i3 = idx * 3;
+      points[i3] = x;
+      points[i3 + 1] = y;
+      points[i3 + 2] = z;
+      speeds[idx] = clamp(Math.hypot(vx, vy, vz) / 4.2, 0.15, 1);
+
+      if (strand === 0 && i === Math.floor((timeSec * 90) % mainCount)) {
+        stateSample = [x, y, z];
+        derivativeSample = [vx, vy, vz];
+      }
+    }
+  }
+
+  const headA = Math.floor((timeSec * 90) % mainCount);
+  const headB = Math.floor((headA + mainCount * 0.5) % mainCount);
+
+  return {
+    points,
+    speeds,
+    polylines: [
+      { start: 0, count: mainCount, closed: true },
+      { start: mainCount, count: mainCount, closed: true },
+    ],
+    headIndices: [headA, headB, mainCount + headA],
+    stateSample,
+    derivativeSample,
+  };
+}
