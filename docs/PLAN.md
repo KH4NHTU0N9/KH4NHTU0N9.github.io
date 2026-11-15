@@ -1,36 +1,37 @@
 # Project Execution Plan — KH4NHTU0N9.github.io
 
 ## Phase 1: Initiation (Khởi tạo)
-- **Mục tiêu (Objective):** Tích hợp xuyên suốt thẩm mỹ & engine **3D/2D Volumetric ASCII, Math & Binary (`MATH | ASCII | BIN`)** trên toàn bộ portfolio (`https://kh4nhtu0n9.github.io/`) — đồng bộ từ nền vũ trụ toàn trang, ảnh đại diện lấy mẫu pixel thực, Oscilloscope & Spectrum, thanh sóng Horizon cho đến từng mô-đun kỹ năng (`01 // CAPABILITY MATRIX`), thẻ repository (`02 // SOURCE REPOSITORIES`) và terminal footer.
+- **Mục tiêu (Objective):** Tái cấu trúc giao diện thành **Information Security Student Portfolio (`https://kh4nhtu0n9.github.io/`)** gọn gàng, điềm tĩnh chuẩn SecOps terminal, sử dụng 3D Cybersecurity ASCII/Math làm điểm nhấn chính thay vì các bảng điều khiển hiệu ứng rườm rà.
 - **Phạm vi (In-scope):**
-  - **Nền sao vũ trụ toàn trang (`AmbientSkyRenderer`):** Canvas cố định `#ambient-sky-canvas` (`#020308`) đồng bộ chế độ ký tự phía sau các lớp kính mờ toàn trang.
-  - **Khung viewport 3D chính (`AsciiMathRenderer` + `asciiScene.js`):** 3D Z-buffer Blinn-Phong (`01 WAVE`, `02 KNOT`, `03 CORE`) với hover scatter, click burst, pre-baked glow sprites 60fps.
-  - **ASCII Portrait & Fallback Sigil (`ProfileView`):** Lấy mẫu màu thực từ avatar GitHub (`crossOrigin="anonymous"`) thành ma trận ký tự màu 16×10 + nút hover/tap chuyển `RAW` <-> `ASCII`.
-  - **ASCII Oscilloscope & Spectrum (`OscilloscopeRenderer`):** Vẽ trực tiếp dao động `Y(x,t)` và phổ 16 dải bằng glyph `MATH | ASCII | BIN`.
-  - **ASCII Portfolio Modules & Blueprints (`asciiArt.js`):** Divider Horizon động + công tắc `[MATH] [ASCII] [BIN]` giữa trang; 3 mô-đun telemetry động (`MOD.01`..`MOD.03`) với cấu trúc cây `├─`/`└─` và signal meter mỗi kỹ năng; 6 thẻ repo kèm hình sóng toán học/nhị phân riêng biệt tính tất định theo tên & ngôn ngữ; terminal CLI status bar ở footer.
+  - **Loại bỏ nhiễu thị giác (Visual De-clutter):** Gỡ bỏ nền hạt sao cuộn toàn trang (`#ambient-sky-canvas`), Oscilloscope hero (`#scope-canvas`), 4 thanh trượt synth, dải sóng Horizon động, `<pre>` nhấp nháy trong card và thanh đo nhị phân `1001` cạnh từng kỹ năng.
+  - **Bộ đôi bảng màu SecOps điềm tĩnh:** Nền `#020308` / `#060911`, điểm nhấn Phosphor Emerald (`#34d399`) + Cold Cyan (`#38bdf8`).
+  - **3 mô hình 3D An toàn thông tin (`src/math/asciiScene.js`):** `01 MESH` (Packet/Defense Mesh), `02 CIPHER` (Modular Cipher Torus `(2,5)`), `03 RF` (Dipole & WiFi/BLE Field) giữ công tắc `MATH | ASCII | BIN` và chế độ `SOLO [H]`.
+  - **Dossier Sinh viên An toàn Thông tin (`src/ui/profileView.js`):** Hiển thị đúng dữ liệu đã xác thực trong `PROFILE_DATA` (DFIR, WiFi/BLE `RLT8720dn`, `ESP32`/Embedded, Linux/Systems) qua cây thư mục `focus/` tĩnh gọn gàng, cùng ảnh đại diện `ASCII/RAW` 16×10.
+  - **Sắp xếp ma trận kỹ năng theo thứ tự An toàn thông tin:** Đưa `MOD.01` (`Security & Forensics`) lên đầu bảng kỹ năng (`MOD.02 Embedded & Flight`, `MOD.03 Systems, Data & Cloud`) dưới dạng cây ASCII tĩnh (`├─` / `└─`).
 - **Tài liệu tham khảo:**
   1. [GitHub Docs — About GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/about-github-pages)
   2. [MDN Web Docs — CanvasRenderingContext2D](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D)
   3. [MDN Web Docs — CORS settings attributes (`crossorigin`)](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/crossorigin)
-  4. [MDN Web Docs — CSS Containment (`contain`)](https://developer.mozilla.org/en-US/docs/Web/CSS/contain)
-  5. [Node.js Documentation — Test runner (`node:test`)](https://nodejs.org/api/test.html)
+  4. [Node.js Documentation — Test runner (`node:test`)](https://nodejs.org/api/test.html)
+  5. [W3C WAI — ARIA Authoring Practices Guide](https://www.w3.org/WAI/ARIA/apg/)
 
 ## Phase 2: Planning (Lập kế hoạch)
-- **Kiến trúc tối ưu hiệu năng:**
-  - Bộ máy 3D (`#math-canvas`) chạy 60fps; nền sao (`#ambient-sky-canvas`) cập nhật nửa tần số khi hoạt động; các `<pre>`/DOM ASCII widgets tiết lưu ở ~9Hz (`115ms`), chỉ ghi DOM khi chuỗi thay đổi và gắn CSS `contain: layout style; overflow: hidden; white-space: pre;` để triệt tiêu reflow.
-  - Dừng toàn bộ `rAF` khi bật `PAUSE` (trừ spark nổ tức thời), và kiểm tra chặt độ rộng `<= 36` ký tự ở card để đảm bảo `0px` tràn ngang trên Mobile `390×844`.
-  - Đồng bộ cache-bust token `?v=gcs24` trên mọi file HTML/CSS/ESM.
+- **Kiến trúc tối giản & độ tin cậy:**
+  - Giữ duy nhất vòng lặp 3D `#math-canvas` ở khung bên phải Hero, tự dừng `rAF` khi bật `PAUSE` hoặc `prefers-reduced-motion`, không còn `rAF` nền toàn trang hay timer chớp DOM `9Hz`.
+  - Kiểm soát chặt tràn ngang `0px` (`scrollWidth <= innerWidth`) trên cả Desktop (`1440×900`) và Mobile (`390×844`), và đảm bảo vùng `RETURN [H]` ở `SOLO [H]` tách bạch với công tắc `[MATH | ASCII | BIN]`.
+  - Đồng bộ token chống cache `?v=gcs25` xuyên suốt HTML, CSS và mọi ESM module.
 
 ## Phase 3: Execution (Thực thi)
 - **Task Tracker:**
-  - [x] Mở rộng `src/math/asciiArt.js` cho toàn bộ trình sinh ASCII toàn trang (Horizon, Domain telemetry, Repo blueprint, Skill meter, RGBA pixel-to-ASCII sampler).
-  - [x] Tạo `src/math/ambientSkyRenderer.js` + `#ambient-sky-canvas` phủ toàn bộ nền trang web.
-  - [x] Chuyển đổi `src/math/scopeRenderer.js` sang vẽ ASCII/Math/Binary waveform + spectrum.
-  - [x] Tích hợp toàn diện vào `src/ui/profileView.js`, `src/main.js`, `index.html`, `styles/main.css`.
-  - [x] Bổ sung `tests/asciiArt.test.mjs` và cập nhật `tests/rendererResize.test.mjs` (`?v=gcs24`).
+  - [x] Gỡ bỏ `src/math/ambientSkyRenderer.js` và `src/math/scopeRenderer.js`.
+  - [x] Viết lại `src/math/asciiScene.js` với 3 mô hình 3D InfoSec (`mesh`, `cipher`, `rf`) và bảng màu Emerald/Cyan.
+  - [x] Tinh gọn `src/math/asciiArt.js` chỉ còn trình lấy mẫu pixel ảnh chân dung và fallback sigil.
+  - [x] Tinh chỉnh `src/math/asciiRenderer.js` (`?v=gcs25`) theo tông radar Emerald/Cyan dịu mắt.
+  - [x] Thiết kế lại `src/ui/profileView.js`, `src/main.js`, `index.html`, `styles/main.css` theo bố cục Dossier & Tree sạch sẽ.
+  - [x] Cập nhật `tests/asciiArt.test.mjs` và `tests/rendererResize.test.mjs` cho `?v=gcs25`.
 
 ## Phase 4: Monitoring (Giám sát)
-- Đang chạy `node --test tests/*.test.mjs`, `node --check`, kiểm thử trình duyệt thực tế toàn trang Desktop (`1440×900`, cuộn xuống xem Matrix/Repos/Footer) & Mobile (`390×844`) trên local và live `https://kh4nhtu0n9.github.io/`.
+- Thực thi `node --test tests/*.test.mjs`, `node --check`, kiểm thử trình duyệt cục bộ (Desktop `1440×900` + scroll toàn trang + Mobile `390×844`) và kiểm tra trực tiếp trên `https://kh4nhtu0n9.github.io/` sau deploy.
 
 ## Phase 5: Closure (Đóng dự án)
-- Hoàn tất kiểm thử, dọn file tạm, commit atomic theo từng phần, push `origin/main` và xác thực live URL `https://kh4nhtu0n9.github.io/`.
+- Dọn server tạm, commit atomic theo từng lớp, đẩy lên `origin/main`, xác nhận GitHub Actions Pages & kiểm chứng trang live lần cuối.
