@@ -1,11 +1,14 @@
-import { DEFAULT_ART_PARAMS, clamp } from './math/mathArt.js?v=gcs24';
-import { ASCII_SCENE_SPECS, GLYPH_MODES, buildAsciiScene, createSkyField } from './math/asciiScene.js?v=gcs24';
-import { AsciiMathRenderer } from './math/asciiRenderer.js?v=gcs24';
-import { AmbientSkyRenderer } from './math/ambientSkyRenderer.js?v=gcs24';
-import { createCameraState } from './math/projection3d.js?v=gcs24';
-import { OscilloscopeRenderer } from './math/scopeRenderer.js?v=gcs24';
-import { PROFILE_DATA, fetchPublicReposWithFallback } from './data/profile.js?v=gcs24';
-import { ProfileView } from './ui/profileView.js?v=gcs24';
+import { clamp } from './math/mathArt.js?v=gcs25';
+import {
+  ASCII_SCENE_SPECS,
+  GLYPH_MODES,
+  buildAsciiScene,
+  createSkyField,
+} from './math/asciiScene.js?v=gcs25';
+import { AsciiMathRenderer } from './math/asciiRenderer.js?v=gcs25';
+import { createCameraState } from './math/projection3d.js?v=gcs25';
+import { PROFILE_DATA, fetchPublicReposWithFallback } from './data/profile.js?v=gcs25';
+import { ProfileView } from './ui/profileView.js?v=gcs25';
 
 const PRESET_ORDER = Object.keys(ASCII_SCENE_SPECS);
 const GLYPH_ORDER = Object.keys(GLYPH_MODES);
@@ -78,7 +81,7 @@ function buildHeaderControls(navRoot, initialState, callbacks) {
   resetBtn.type = 'button';
   resetBtn.className = 'nav-cell';
   resetBtn.textContent = 'RESET';
-  resetBtn.title = 'Reset camera & sliders (R)';
+  resetBtn.title = 'Reset camera angle (R)';
   resetBtn.addEventListener('click', () => callbacks.onResetAll());
   navRoot.appendChild(resetBtn);
 
@@ -86,7 +89,7 @@ function buildHeaderControls(navRoot, initialState, callbacks) {
   soloBtn.type = 'button';
   soloBtn.className = 'nav-cell nav-cell--accent';
   soloBtn.textContent = 'SOLO [H]';
-  soloBtn.title = 'Fullscreen ASCII/Math viewport (H)';
+  soloBtn.title = 'Fullscreen 3D ASCII visualizer (H)';
   soloBtn.addEventListener('click', () => callbacks.onToggleZen());
   navRoot.appendChild(soloBtn);
 
@@ -138,7 +141,6 @@ function bindGlyphControls(glyphRoot, initialMode, onSelectGlyphMode) {
 
 function initApp() {
   const appShell = document.getElementById('app-shell');
-  const ambientCanvas = document.getElementById('ambient-sky-canvas');
   const canvas = document.getElementById('math-canvas');
   const canvasStage = document.getElementById('canvas-stage');
   const navRoot = document.getElementById('nav-controls');
@@ -152,7 +154,7 @@ function initApp() {
   const zenExitBtn = document.getElementById('zen-exit-btn');
 
   if (!appShell || !navRoot || !consoleRoot || !sectionsRoot || !footerRoot) {
-    renderBootRecovery('Cockpit mount nodes missing due to stale cached HTML.');
+    renderBootRecovery('Portfolio mount nodes missing due to stale cached HTML.');
     return;
   }
   const interactionStage = canvasStage || canvas;
@@ -163,42 +165,25 @@ function initApp() {
 
   const reducedMotionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
   const state = {
-    presetId: 'wave',
+    presetId: 'mesh',
     glyphMode: 'math',
     paused: Boolean(reducedMotionQuery?.matches),
     zen: false,
     camera: createCameraState(),
-    params: { ...DEFAULT_ART_PARAMS, speed: 1.0 },
     simTimeSec: 0,
   };
 
   document.documentElement.dataset.glyphMode = state.glyphMode;
 
   const skyField = createSkyField(2026);
-  const ambientSky = ambientCanvas ? new AmbientSkyRenderer(ambientCanvas, 4096) : null;
-  ambientSky?.setGlyphMode(state.glyphMode);
-
   const renderer = new AsciiMathRenderer(canvas);
   renderer.setGlyphMode(state.glyphMode);
 
   const profileView = new ProfileView(
     { consoleRoot, sectionsRoot, footerRoot },
     PROFILE_DATA,
-    {
-      onParamChange: (key, val) => {
-        if (key === 'zoom') {
-          state.camera.zoom = clamp(val, 0.65, 1.65);
-        } else {
-          state.params[key] = val;
-        }
-        renderFrameNow(true);
-      },
-      onSelectGlyphMode: (modeId) => setGlyphMode(modeId),
-    },
   );
-  const scopeCanvas = profileView.getScopeCanvas();
-  const scopeRenderer = scopeCanvas ? new OscilloscopeRenderer(scopeCanvas) : null;
-  scopeRenderer?.setGlyphMode(state.glyphMode);
+  profileView.setGlyphMode(state.glyphMode, state.presetId, 0);
 
   const nav = buildHeaderControls(navRoot, state, {
     onSelectPreset: (presetId) => switchPreset(presetId),
@@ -210,7 +195,6 @@ function initApp() {
   const glyphUi = bindGlyphControls(glyphRoot, state.glyphMode, (modeId) => setGlyphMode(modeId));
 
   let lastHudSyncMs = 0;
-  let lastScopeStats = { peak: 0, rms: 0 };
   let lastGridStats = { cols: 0, rows: 0, activeGlyphs: 0 };
 
   function syncTelemetry(force = false) {
@@ -220,7 +204,7 @@ function initApp() {
     }
     lastHudSyncMs = now;
 
-    const spec = ASCII_SCENE_SPECS[state.presetId] || ASCII_SCENE_SPECS.wave;
+    const spec = ASCII_SCENE_SPECS[state.presetId] || ASCII_SCENE_SPECS.mesh;
     const yawText = formatWrappedDeg(state.camera.yawRad);
     const pitchText = formatWrappedDeg(state.camera.pitchRad);
     const zoomText = `${state.camera.zoom.toFixed(2)}×`;
@@ -235,12 +219,10 @@ function initApp() {
     if (viewportAttitudeEl) {
       viewportAttitudeEl.textContent = `AZ ${yawText} · EL ${pitchText} · ${gridText}`;
     }
-    profileView.updateScopeReadout(lastScopeStats);
   }
 
-  let ambientTickCounter = 0;
   function renderFrameNow(forceTelemetry = false) {
-    const scene = buildAsciiScene(state.presetId, state.simTimeSec, state.params);
+    const scene = buildAsciiScene(state.presetId, state.simTimeSec);
     const frameResult = renderer.render(scene, state.camera, skyField, state.simTimeSec);
     if (frameResult) {
       lastGridStats = {
@@ -248,18 +230,6 @@ function initApp() {
         rows: frameResult.rows || 0,
         activeGlyphs: frameResult.activeGlyphs || 0,
       };
-    }
-
-    if (ambientSky && (forceTelemetry || ambientTickCounter % 2 === 0)) {
-      ambientSky.render(state.simTimeSec);
-    }
-    ambientTickCounter++;
-
-    if (scene && scopeRenderer && !state.zen) {
-      lastScopeStats = scopeRenderer.render(scene, state.glyphMode);
-    }
-    if (!state.zen) {
-      profileView.updateAsciiUi(state.simTimeSec, state.presetId, forceTelemetry);
     }
     syncTelemetry(forceTelemetry);
   }
@@ -281,10 +251,9 @@ function initApp() {
     lastFrameMs = nowMs;
 
     if (isRunning) {
-      const rate = state.params.speed;
-      state.simTimeSec += dtSec * rate;
-      if (activePointers.size === 0 && !reducedMotionQuery?.matches && rate > 0) {
-        state.camera.yawRad += dtSec * 0.22 * rate;
+      state.simTimeSec += dtSec;
+      if (activePointers.size === 0 && !reducedMotionQuery?.matches) {
+        state.camera.yawRad += dtSec * 0.18;
       }
     }
     if (hasBursts) {
@@ -316,7 +285,7 @@ function initApp() {
     }
     state.presetId = presetId;
     nav.sync(state);
-    profileView.setGlyphMode(state.glyphMode, state.presetId, state.simTimeSec);
+    profileView.setPreset(state.presetId);
     renderFrameNow(true);
   }
 
@@ -327,8 +296,6 @@ function initApp() {
     state.glyphMode = modeId;
     document.documentElement.dataset.glyphMode = modeId;
     renderer.setGlyphMode(modeId);
-    ambientSky?.setGlyphMode(modeId);
-    scopeRenderer?.setGlyphMode(modeId);
     profileView.setGlyphMode(modeId, state.presetId, state.simTimeSec);
     glyphUi.sync(modeId);
     renderFrameNow(true);
@@ -347,8 +314,6 @@ function initApp() {
 
   function resetAll() {
     state.camera = createCameraState();
-    state.params = { ...DEFAULT_ART_PARAMS, speed: 1.0 };
-    profileView.syncSliderValues({ ...state.params, zoom: state.camera.zoom });
     renderFrameNow(true);
   }
 
@@ -360,9 +325,7 @@ function initApp() {
       zenExitBtn.hidden = !state.zen;
     }
     requestAnimationFrame(() => {
-      ambientSky?.resize();
       renderer.resize();
-      scopeRenderer?.resize();
       renderFrameNow(true);
     });
   }
@@ -491,9 +454,7 @@ function initApp() {
   });
 
   const handleViewportResize = () => {
-    ambientSky?.resize();
     renderer.resize();
-    scopeRenderer?.resize();
     renderFrameNow();
   };
 
@@ -501,14 +462,9 @@ function initApp() {
   if (typeof ResizeObserver === 'function') {
     const ro = new ResizeObserver(handleViewportResize);
     ro.observe(interactionStage);
-    if (scopeCanvas) {
-      ro.observe(scopeCanvas);
-    }
   }
 
-  ambientSky?.resize();
   renderer.resize();
-  scopeRenderer?.resize();
   renderFrameNow(true);
   scheduleNextTick();
 

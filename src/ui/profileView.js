@@ -1,12 +1,5 @@
-import { LANGUAGE_COLORS, PROFILE_DATA, isSafeExternalUrl } from '../data/profile.js?v=gcs24';
-import {
-  formatSkillMeter,
-  generateDomainBanner,
-  generateFallbackSigilRows,
-  generateHorizonBanner,
-  generateRepoAsciiPreview,
-  sampleImagePixelsToAscii,
-} from '../math/asciiArt.js?v=gcs24';
+import { LANGUAGE_COLORS, PROFILE_DATA, isSafeExternalUrl } from '../data/profile.js?v=gcs25';
+import { generateFallbackSigilRows, sampleImagePixelsToAscii } from '../math/asciiArt.js?v=gcs25';
 
 function createEl(tag, className, text) {
   const el = document.createElement(tag);
@@ -32,12 +25,12 @@ function createSafeLink(href, className, text, { allowMailto = false } = {}) {
   return a;
 }
 
-const SLIDER_SPECS = [
-  { key: 'freq', code: 'HARMONIC / K', min: 0.4, max: 2.4, step: 0.05, def: 1.0, unit: '×' },
-  { key: 'amp', code: 'AMPLITUDE / A', min: 0.35, max: 1.65, step: 0.05, def: 1.0, unit: '×' },
-  { key: 'speed', code: 'PHASE_RATE', min: 0, max: 2.5, step: 0.05, def: 1.0, unit: '×' },
-  { key: 'zoom', code: 'CAM_OPTIC_ZM', min: 0.65, max: 1.65, step: 0.05, def: 1.0, unit: '×' },
-];
+const DOMAIN_ORDER = ['security', 'embedded', 'systems'];
+const DOMAIN_CODES = {
+  security: 'MOD.01',
+  embedded: 'MOD.02',
+  systems: 'MOD.03',
+};
 
 const MODE_LABELS = {
   math: 'MATH',
@@ -49,88 +42,105 @@ const AVATAR_COLS = 16;
 const AVATAR_ROWS = 10;
 
 /**
- * Renders the unified ASCII/Math portfolio interface across UNIT_01 Operator Console,
- * Live Pixel-Sampled ASCII Portrait, Horizon Wave Divider, Domain Visualizers,
- * Procedural Repository ASCII Blueprints, and CLI Status Colophon.
+ * Renders the Information Security student portfolio console, live pixel-sampled
+ * ASCII portrait, verified `focus/` ASCII tree, tooling matrix, and repositories.
  */
 export class ProfileView {
   /**
-   * @param {{ consoleRoot: HTMLElement, sectionsRoot: HTMLElement, footerRoot: HTMLElement }} roots
+   * @param {{ consoleRoot?: HTMLElement, heroRoot?: HTMLElement, sectionsRoot?: HTMLElement, footerRoot?: HTMLElement }} roots
    * @param {typeof PROFILE_DATA} [profile]
-   * @param {{ onParamChange?: (key: string, val: number) => void, onSelectGlyphMode?: (modeId: string) => void }} [callbacks]
    */
-  constructor({ consoleRoot, heroRoot, sectionsRoot, footerRoot } = {}, profile = PROFILE_DATA, callbacks = {}) {
+  constructor({ consoleRoot, heroRoot, sectionsRoot, footerRoot } = {}, profile = PROFILE_DATA) {
     this.consoleRoot = consoleRoot || heroRoot || null;
     this.sectionsRoot = sectionsRoot || null;
     this.footerRoot = footerRoot || null;
     this.profile = profile;
-    this.callbacks = callbacks;
 
     this.activeDomainId = 'all';
     this.searchQuery = '';
     this.glyphMode = 'math';
-    this.presetId = 'wave';
+    this.presetId = 'mesh';
     this.repoSource = 'fallback';
     this.repoCount = this.profile.fallbackRepos.length;
 
     this.domainButtons = new Map();
-    this.sliderControls = new Map();
-    this.inlineGlyphButtons = [];
-
-    this.scopeCanvasEl = null;
-    this.scopeStatsEl = null;
     this.avatarCanvasEl = null;
     this.avatarCtx = null;
     this.avatarPixels = null;
     this.avatarRawPinned = false;
     this.avatarBadgeEl = null;
-    this.avatarDirty = true;
-
-    this.horizonStreamEl = null;
-    this.horizonModeTagEl = null;
-    this.domainWidgets = [];
-    this.skillMeters = [];
-    this.repoWidgets = [];
     this.footerCliEl = null;
 
     this.indexGridEl = null;
     this.reposGridEl = null;
     this.reposStatusEl = null;
-    this.lastScopeStatsText = '';
-    this.lastAsciiUiMs = 0;
 
     this.renderConsole();
     this.renderSectionsBase();
     this.renderDomains('all');
     this.renderRepos(this.profile.fallbackRepos, 'fallback');
     this.renderFooter();
-    this.updateAsciiUi(0, this.presetId, true);
+    this.drawAvatarCanvas(0);
   }
 
-  getScopeCanvas() {
-    return this.scopeCanvasEl;
+  getOrderedDomains() {
+    const orderRank = new Map(DOMAIN_ORDER.map((id, i) => [id, i]));
+    return [...(this.profile.techDomains || [])].sort(
+      (a, b) => (orderRank.get(a.id) ?? 99) - (orderRank.get(b.id) ?? 99),
+    );
+  }
+
+  buildFocusEntries() {
+    const byId = new Map((this.profile.techDomains || []).map((d) => [d.id, d]));
+    const secItems = byId.get('security')?.items || [];
+    const embItems = byId.get('embedded')?.items || [];
+    const sysItems = byId.get('systems')?.items || [];
+
+    const pickVerified = (pool, preferred, limit = 4) => {
+      const picked = preferred.filter((item) => pool.includes(item));
+      return (picked.length > 0 ? picked : pool).slice(0, limit);
+    };
+
+    const dfirTools = pickVerified(secItems, [
+      'Kali Linux',
+      'Wireshark',
+      'Binwalk',
+      'The Sleuth Kit',
+      'Steghide',
+    ]);
+    const hwTools = pickVerified(embItems, ['ESP32', 'Embedded C', 'Betaflight', 'PX4 Autopilot'], 3);
+    const hasRtl8720 = (this.profile.fallbackRepos || []).some((r) =>
+      String(r.name || '').toUpperCase().includes('RLT8720DN'),
+    );
+    const wirelessList = hasRtl8720 ? ['RLT8720dn (WiFi/BLE)', ...hwTools] : hwTools;
+    const sysTools = pickVerified(sysItems, ['Linux', 'Python', 'TypeScript', 'Docker']);
+
+    return [
+      { key: 'dfir/', value: dfirTools.join(' · ') },
+      { key: 'wireless/', value: wirelessList.join(' · ') },
+      { key: 'systems/', value: sysTools.join(' · ') },
+    ];
   }
 
   setGlyphMode(modeId, presetId = this.presetId, timeSec = 0) {
     if (Object.prototype.hasOwnProperty.call(MODE_LABELS, modeId)) {
       this.glyphMode = modeId;
-      this.avatarDirty = true;
     }
-    this.presetId = presetId || this.presetId;
+    if (presetId) {
+      this.presetId = presetId;
+    }
+    if (this.avatarBadgeEl && !this.avatarRawPinned) {
+      this.avatarBadgeEl.textContent = MODE_LABELS[this.glyphMode];
+    }
+    this.drawAvatarCanvas(timeSec);
+    this.syncFooterCli();
+  }
 
-    for (const btn of this.inlineGlyphButtons) {
-      const active = btn.dataset.inlineGlyph === this.glyphMode;
-      btn.classList.toggle('is-active', active);
-      btn.setAttribute('aria-pressed', String(active));
+  setPreset(presetId) {
+    if (presetId) {
+      this.presetId = presetId;
+      this.syncFooterCli();
     }
-    if (this.avatarBadgeEl) {
-      this.avatarBadgeEl.textContent = this.avatarRawPinned ? 'RAW' : MODE_LABELS[this.glyphMode];
-    }
-    if (this.horizonModeTagEl) {
-      this.horizonModeTagEl.textContent = `GLYPH:${MODE_LABELS[this.glyphMode]}`;
-    }
-
-    this.updateAsciiUi(timeSec, this.presetId, true);
   }
 
   renderConsole() {
@@ -139,18 +149,18 @@ export class ProfileView {
     }
     this.consoleRoot.textContent = '';
 
-    const bar = createEl('div', 'pane-header');
-    bar.appendChild(createEl('span', 'pane-title', '┌─ UNIT_01 // OPERATOR & ASCII_SCOPE'));
-    bar.appendChild(createEl('span', 'pane-tag pane-tag--live', 'ONLINE'));
-    this.consoleRoot.appendChild(bar);
+    const header = createEl('div', 'pane-header');
+    header.appendChild(createEl('span', 'pane-title', `~/${this.profile.login.toLowerCase()} $ whoami`));
+    header.appendChild(createEl('span', 'pane-tag', 'INFOSEC // STUDENT'));
+    this.consoleRoot.appendChild(header);
 
     const body = createEl('div', 'console-body');
 
     const identityStrip = createEl('div', 'hero-id-strip');
-    const avatarBtn = createEl('button', 'hero-avatar-frame');
+    const avatarBtn = createEl('button', 'avatar-toggle');
     avatarBtn.type = 'button';
-    avatarBtn.title = 'Click or hover to toggle raw avatar vs live ASCII portrait';
     avatarBtn.setAttribute('aria-pressed', 'false');
+    avatarBtn.setAttribute('aria-label', 'Toggle portrait between ASCII glyph art and raw photo');
 
     this.avatarCanvasEl = document.createElement('canvas');
     this.avatarCanvasEl.className = 'hero-avatar-ascii';
@@ -186,10 +196,8 @@ export class ProfileView {
             w: AVATAR_COLS,
             h: AVATAR_ROWS,
           };
-          this.avatarDirty = true;
           this.drawAvatarCanvas(0);
         } catch {
-          // Graceful fallback to procedural animated ASCII sigil if canvas sampling is restricted
           this.avatarPixels = null;
         }
       };
@@ -204,7 +212,7 @@ export class ProfileView {
         () => {
           rawImg.remove();
           this.avatarPixels = null;
-          this.avatarDirty = true;
+          this.drawAvatarCanvas(0);
         },
         { once: true },
       );
@@ -224,10 +232,10 @@ export class ProfileView {
 
     const metaStack = createEl('div', 'hero-meta-stack');
     metaStack.appendChild(
-      createEl('span', 'hero-handle', `CALLSIGN // @${this.profile.login} · ${this.profile.pronouns.toUpperCase()}`),
+      createEl('span', 'hero-handle', `OPERATOR // @${this.profile.login} · ${this.profile.pronouns.toUpperCase()}`),
     );
     metaStack.appendChild(
-      createEl('span', 'hero-disciplines', this.profile.tagline.toUpperCase()),
+      createEl('span', 'hero-disciplines', 'INFORMATION SECURITY STUDENT · EMBEDDED & SYSTEMS'),
     );
     metaStack.appendChild(
       createEl('span', 'hero-ascii-note', '[HOVER/TAP PORTRAIT → ASCII/RAW]'),
@@ -241,55 +249,33 @@ export class ProfileView {
     body.appendChild(headingWrap);
     body.appendChild(createEl('p', 'hero-statement', this.profile.bio));
 
-    // Real-time ASCII/Math Oscilloscope Waveform + Spectral Energy Panel
-    const scopePanel = createEl('div', 'scope-panel');
-    const scopeBar = createEl('div', 'scope-bar');
-    scopeBar.appendChild(createEl('span', 'scope-label', 'CH1 · ASCII WAVEFORM & FFT'));
-    this.scopeStatsEl = createEl('span', 'scope-stats', 'PK 0.00 · RMS 0.00');
-    scopeBar.appendChild(this.scopeStatsEl);
-    scopePanel.appendChild(scopeBar);
+    // Clean verified InfoSec focus ASCII tree
+    const focusTree = createEl('div', 'focus-tree');
+    focusTree.setAttribute('role', 'region');
+    focusTree.setAttribute('aria-label', 'Information security focus areas');
 
-    this.scopeCanvasEl = document.createElement('canvas');
-    this.scopeCanvasEl.id = 'scope-canvas';
-    this.scopeCanvasEl.className = 'scope-canvas';
-    this.scopeCanvasEl.setAttribute('aria-label', 'Live ASCII mathematical waveform oscilloscope');
-    scopePanel.appendChild(this.scopeCanvasEl);
-    body.appendChild(scopePanel);
+    const focusHead = createEl('div', 'focus-tree__head');
+    focusHead.appendChild(createEl('span', 'focus-root', 'focus/'));
+    focusHead.appendChild(
+      createEl('span', 'focus-meta', `${this.profile.stats.publicRepos} PUBLIC REPOS`),
+    );
+    focusTree.appendChild(focusHead);
 
-    // 2x2 Hardware Geometry Control Rack
-    const rack = createEl('div', 'param-rack');
-    for (const spec of SLIDER_SPECS) {
-      const cell = createEl('div', 'param-cell');
-      const head = createEl('div', 'param-cell__head');
-      const labelEl = createEl('label', 'param-cell__name', spec.code);
-      const inputId = `ctrl-${spec.key}`;
-      labelEl.setAttribute('for', inputId);
-      const valEl = createEl('span', 'param-cell__val', `${spec.def.toFixed(2)}${spec.unit}`);
-      head.append(labelEl, valEl);
+    const focusEntries = this.buildFocusEntries();
+    focusEntries.forEach((entry, idx) => {
+      const row = createEl('div', 'focus-row');
+      const branch = idx === focusEntries.length - 1 ? '└─' : '├─';
+      row.append(
+        createEl('span', 'focus-branch', branch),
+        createEl('span', 'focus-key', entry.key),
+        createEl('span', 'focus-val', entry.value),
+      );
+      focusTree.appendChild(row);
+    });
+    body.appendChild(focusTree);
 
-      const input = document.createElement('input');
-      input.id = inputId;
-      input.type = 'range';
-      input.className = 'hw-slider';
-      input.min = String(spec.min);
-      input.max = String(spec.max);
-      input.step = String(spec.step);
-      input.value = String(spec.def);
-      input.addEventListener('input', () => {
-        const val = Number(input.value);
-        valEl.textContent = `${val.toFixed(2)}${spec.unit}`;
-        this.callbacks.onParamChange?.(spec.key, val);
-      });
-
-      this.sliderControls.set(spec.key, { input, valEl, unit: spec.unit });
-      cell.append(head, input);
-      rack.appendChild(cell);
-    }
-    body.appendChild(rack);
-
-    // Action Comms Strip
     const linkGrid = createEl('nav', 'hero-links');
-    linkGrid.setAttribute('aria-label', 'Social profiles');
+    linkGrid.setAttribute('aria-label', 'External profiles and direct contact');
     for (const s of this.profile.socials) {
       const isPrimary = s.label === 'GitHub';
       const cls = isPrimary ? 'grid-link grid-link--primary' : 'grid-link';
@@ -303,7 +289,7 @@ export class ProfileView {
   }
 
   /**
-   * Draws current colorized ASCII/Math/Binary portrait matrix onto `.hero-avatar-ascii`.
+   * Draws crisp ASCII/Math/Binary portrait matrix onto `.hero-avatar-ascii`.
    * @param {number} [timeSec]
    */
   drawAvatarCanvas(timeSec = 0) {
@@ -350,28 +336,6 @@ export class ProfileView {
         ctx.fillText(cell.ch, (c + 0.5) * cellW, cy);
       }
     }
-    this.avatarDirty = false;
-  }
-
-  /**
-   * Synchronizes hardware slider inputs (e.g. when RESET [R] restores defaults).
-   * @param {Record<string, number>} values
-   */
-  syncSliderValues(values) {
-    for (const [key, ctrl] of this.sliderControls.entries()) {
-      const num = Number(values[key]);
-      if (!Number.isFinite(num)) continue;
-      ctrl.input.value = String(num);
-      ctrl.valEl.textContent = `${num.toFixed(2)}${ctrl.unit}`;
-    }
-  }
-
-  updateScopeReadout({ peak, rms }) {
-    if (!this.scopeStatsEl) return;
-    const text = `PK ${peak.toFixed(2)} · RMS ${rms.toFixed(2)}`;
-    if (text === this.lastScopeStatsText) return;
-    this.lastScopeStatsText = text;
-    this.scopeStatsEl.textContent = text;
   }
 
   renderSectionsBase() {
@@ -379,40 +343,12 @@ export class ProfileView {
       return;
     }
     this.sectionsRoot.textContent = '';
-    this.inlineGlyphButtons = [];
 
-    // Continuous ASCII Horizon Wave Divider + Inline Mode Sync Bar
-    const horizonBand = createEl('div', 'ascii-horizon-band');
-    this.horizonModeTagEl = createEl('span', 'horizon-tag', `GLYPH:${MODE_LABELS[this.glyphMode]}`);
-    this.horizonStreamEl = createEl('pre', 'horizon-stream');
-    this.horizonStreamEl.setAttribute('aria-hidden', 'true');
-
-    const inlineSwitch = createEl('div', 'inline-glyph-switch');
-    inlineSwitch.setAttribute('role', 'group');
-    inlineSwitch.setAttribute('aria-label', 'Portfolio ASCII glyph mode switcher');
-
-    for (const [modeId, label] of Object.entries(MODE_LABELS)) {
-      const btn = createEl('button', 'inline-glyph-btn', `[${label}]`);
-      btn.type = 'button';
-      btn.dataset.inlineGlyph = modeId;
-      const isActive = modeId === this.glyphMode;
-      btn.classList.toggle('is-active', isActive);
-      btn.setAttribute('aria-pressed', String(isActive));
-      btn.addEventListener('click', () => {
-        this.callbacks.onSelectGlyphMode?.(modeId);
-      });
-      this.inlineGlyphButtons.push(btn);
-      inlineSwitch.appendChild(btn);
-    }
-
-    horizonBand.append(this.horizonModeTagEl, this.horizonStreamEl, inlineSwitch);
-    this.sectionsRoot.appendChild(horizonBand);
-
-    // 01 // Capability Matrix
+    // 01 // Tooling & Capabilities Matrix (Security-first ordered)
     const indexSec = createEl('section', 'swiss-section');
-    const indexBar = createEl('div', 'section-bar section-bar--matrix');
+    const indexBar = createEl('div', 'section-bar');
     const indexLeft = createEl('div', 'section-bar__left');
-    indexLeft.appendChild(createEl('span', 'section-code', '┌─ 01 // CAPABILITY MATRIX'));
+    indexLeft.appendChild(createEl('span', 'section-code', '┌─ 01 // TOOLING & CAPABILITIES'));
 
     const cmdWrap = createEl('div', 'cmd-filter-wrap');
     const cmdLabel = createEl('label', 'cmd-prompt', '> grep');
@@ -421,21 +357,19 @@ export class ProfileView {
     cmdInput.id = 'stack-grep-input';
     cmdInput.type = 'search';
     cmdInput.className = 'cmd-input';
-    cmdInput.placeholder = 'esp32, wireshark, docker...';
+    cmdInput.placeholder = 'wireshark, binwalk, esp32...';
     cmdInput.autocomplete = 'off';
     cmdInput.spellcheck = false;
-    cmdInput.setAttribute('aria-label', 'Filter engineering stack');
+    cmdInput.setAttribute('aria-label', 'Filter engineering and security tools');
     cmdInput.addEventListener('input', () => {
       this.searchQuery = cmdInput.value.trim().toLowerCase();
       this.renderDomains(this.activeDomainId);
-      this.updateAsciiUi(0, this.presetId, true);
     });
     cmdInput.addEventListener('keydown', (ev) => {
       if (ev.key === 'Escape' && cmdInput.value) {
         cmdInput.value = '';
         this.searchQuery = '';
         this.renderDomains(this.activeDomainId);
-        this.updateAsciiUi(0, this.presetId, true);
       }
     });
     cmdWrap.append(cmdLabel, cmdInput);
@@ -444,25 +378,23 @@ export class ProfileView {
 
     const filterRow = createEl('div', 'text-tabs');
     filterRow.setAttribute('role', 'tablist');
-    filterRow.setAttribute('aria-label', 'Filter engineering domains');
+    filterRow.setAttribute('aria-label', 'Filter tooling domains');
 
-    const totalCount = this.profile.techDomains.reduce((sum, d) => sum + d.items.length, 0);
+    const orderedDomains = this.getOrderedDomains();
+    const totalCount = orderedDomains.reduce((sum, d) => sum + d.items.length, 0);
     const allTab = createEl('button', 'text-tab is-active', `ALL (${totalCount})`);
     allTab.type = 'button';
     allTab.addEventListener('click', () => {
       this.renderDomains('all');
-      this.updateAsciiUi(0, this.presetId, true);
     });
     this.domainButtons.set('all', allTab);
     filterRow.appendChild(allTab);
 
-    const letters = ['A', 'B', 'C'];
-    this.profile.techDomains.forEach((dom, i) => {
-      const btn = createEl('button', 'text-tab', `${letters[i] || i + 1}. ${dom.label.toUpperCase()}`);
+    orderedDomains.forEach((dom) => {
+      const btn = createEl('button', 'text-tab', dom.label.toUpperCase());
       btn.type = 'button';
       btn.addEventListener('click', () => {
         this.renderDomains(dom.id);
-        this.updateAsciiUi(0, this.presetId, true);
       });
       this.domainButtons.set(dom.id, btn);
       filterRow.appendChild(btn);
@@ -498,7 +430,7 @@ export class ProfileView {
   }
 
   /**
-   * Renders numbered capability columns with embedded live procedural ASCII telemetry boxes.
+   * Renders calm, scannable capability modules formatted as an ASCII directory tree.
    * @param {string} domainId
    */
   renderDomains(domainId) {
@@ -513,16 +445,12 @@ export class ProfileView {
     }
 
     this.indexGridEl.textContent = '';
-    this.domainWidgets = [];
-    this.skillMeters = [];
 
     const isSingle = domainId !== 'all';
     const q = this.searchQuery;
+    const ordered = this.getOrderedDomains();
 
-    const list = (isSingle
-      ? this.profile.techDomains.filter((d) => d.id === domainId)
-      : this.profile.techDomains
-    )
+    const list = (isSingle ? ordered.filter((d) => d.id === domainId) : ordered)
       .map((dom) => ({
         ...dom,
         filteredItems: q
@@ -545,13 +473,11 @@ export class ProfileView {
       return;
     }
 
-    const codes = { embedded: 'MOD.01', security: 'MOD.02', systems: 'MOD.03' };
-
     for (const dom of list) {
       const col = createEl('article', 'index-col');
 
       const colHead = createEl('div', 'index-col__head');
-      colHead.appendChild(createEl('span', 'index-col__code', `┌─ ${codes[dom.id] || 'MOD.00'}`));
+      colHead.appendChild(createEl('span', 'index-col__code', `┌─ ${DOMAIN_CODES[dom.id] || 'MOD.00'}`));
       colHead.appendChild(
         createEl('span', 'index-col__count', `${String(dom.filteredItems.length).padStart(2, '0')} UNITS`),
       );
@@ -560,25 +486,16 @@ export class ProfileView {
       col.appendChild(createEl('h2', 'index-col__title', dom.label));
       col.appendChild(createEl('p', 'index-col__sub', dom.subtitle));
 
-      const asciiBox = createEl('pre', `ascii-widget ascii-widget--domain ascii-widget--${dom.id}`);
-      asciiBox.setAttribute('aria-hidden', 'true');
-      col.appendChild(asciiBox);
-      this.domainWidgets.push({ el: asciiBox, domainId: dom.id, lastText: '' });
-
       const ul = createEl('ul', 'index-list');
       const totalItems = dom.filteredItems.length;
       dom.filteredItems.forEach((item, idx) => {
         const li = createEl('li', 'index-list__item');
         const treePrefix = idx === totalItems - 1 ? '└─' : '├─';
-        const meterEl = createEl('span', 'index-list__meter', '');
-        meterEl.setAttribute('aria-hidden', 'true');
         li.append(
           createEl('span', 'index-list__tree', treePrefix),
           createEl('span', 'index-list__num', String(idx + 1).padStart(2, '0')),
           createEl('span', 'index-list__name', item),
-          meterEl,
         );
-        this.skillMeters.push({ el: meterEl, idx, total: totalItems, lastText: '' });
         ul.appendChild(li);
       });
       col.appendChild(ul);
@@ -587,7 +504,7 @@ export class ProfileView {
   }
 
   /**
-   * Renders repositories with deterministic procedural ASCII wave/lattice blueprints.
+   * Renders clean public repository cards ordered as a structured terminal ledger.
    * @param {Array<any>} repos
    * @param {'live' | 'fallback'} source
    */
@@ -599,7 +516,6 @@ export class ProfileView {
     this.repoCount = repos.length;
     this.reposStatusEl.textContent = source === 'live' ? 'GITHUB API · LIVE' : 'SNAPSHOT';
     this.reposGridEl.textContent = '';
-    this.repoWidgets = [];
 
     repos.forEach((repo, idx) => {
       const cell = createEl('article', 'ledger-cell');
@@ -616,18 +532,6 @@ export class ProfileView {
       langWrap.append(sq, createEl('span', '', repo.language));
       head.appendChild(langWrap);
       cell.appendChild(head);
-
-      const asciiArtEl = createEl('pre', 'ascii-widget ascii-widget--repo');
-      asciiArtEl.setAttribute('aria-hidden', 'true');
-      cell.appendChild(asciiArtEl);
-      this.repoWidgets.push({
-        el: asciiArtEl,
-        name: repo.name,
-        language: repo.language,
-        stars: repo.stars,
-        lastText: '',
-        colorApplied: false,
-      });
 
       const summary = repo.description || `Public ${repo.language} source repository on GitHub.`;
       cell.appendChild(createEl('p', 'ledger-desc', summary));
@@ -646,74 +550,17 @@ export class ProfileView {
       this.reposGridEl.appendChild(cell);
     });
 
-    this.updateAsciiUi(0, this.presetId, true);
+    this.syncFooterCli();
   }
 
-  /**
-   * Throttled (~9Hz) update pass syncing every DOM ASCII banner, widget, skill meter,
-   * avatar fallback sigil, and footer prompt without layout reflow.
-   *
-   * @param {number} timeSec
-   * @param {string} [presetId]
-   * @param {boolean} [force]
-   */
-  updateAsciiUi(timeSec = 0, presetId = this.presetId, force = false) {
-    this.presetId = presetId || this.presetId;
-
-    if (this.avatarDirty || !this.avatarPixels) {
-      if (force || !this.avatarPixels) {
-        this.drawAvatarCanvas(timeSec);
-      }
-    }
-
-    const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    if (!force && nowMs - this.lastAsciiUiMs < 115) {
+  syncFooterCli() {
+    if (!this.footerCliEl) {
       return;
     }
-    this.lastAsciiUiMs = nowMs;
-
-    const mode = this.glyphMode;
-    if (this.horizonStreamEl) {
-      const nextHorizon = generateHorizonBanner(88, timeSec, mode);
-      if (this.horizonStreamEl.textContent !== nextHorizon) {
-        this.horizonStreamEl.textContent = nextHorizon;
-      }
-    }
-
-    for (const widget of this.domainWidgets) {
-      const nextText = generateDomainBanner(widget.domainId, timeSec, mode).join('\n');
-      if (nextText !== widget.lastText) {
-        widget.lastText = nextText;
-        widget.el.textContent = nextText;
-      }
-    }
-
-    for (const meter of this.skillMeters) {
-      const nextMeter = formatSkillMeter(meter.idx, meter.total, timeSec, mode);
-      if (nextMeter !== meter.lastText) {
-        meter.lastText = nextMeter;
-        meter.el.textContent = nextMeter;
-      }
-    }
-
-    for (const rw of this.repoWidgets) {
-      const preview = generateRepoAsciiPreview(rw.name, rw.language, rw.stars, timeSec, mode);
-      const nextText = preview.lines.join('\n');
-      if (!rw.colorApplied) {
-        rw.el.style.color = preview.accentCss;
-        rw.colorApplied = true;
-      }
-      if (nextText !== rw.lastText) {
-        rw.lastText = nextText;
-        rw.el.textContent = nextText;
-      }
-    }
-
-    if (this.footerCliEl) {
-      const nextCli = `${this.profile.login.toLowerCase()}@github.io:~$ ./ascii-portfolio --glyph=${MODE_LABELS[mode]} --scene=${this.presetId.toUpperCase()} --nodes=${this.repoCount}`;
-      if (this.footerCliEl.textContent !== nextCli) {
-        this.footerCliEl.textContent = nextCli;
-      }
+    const mode = MODE_LABELS[this.glyphMode] || 'MATH';
+    const nextCli = `${this.profile.login.toLowerCase()}@sec:~$ ./portfolio --scene=${this.presetId} --glyph=${mode.toLowerCase()} --repos=${this.repoCount}`;
+    if (this.footerCliEl.textContent !== nextCli) {
+      this.footerCliEl.textContent = nextCli;
     }
   }
 
@@ -722,11 +569,8 @@ export class ProfileView {
       return;
     }
     this.footerRoot.textContent = '';
-    this.footerCliEl = createEl(
-      'span',
-      'colophon-item colophon-cli',
-      `${this.profile.login.toLowerCase()}@github.io:~$ ./ascii-portfolio --glyph=${MODE_LABELS[this.glyphMode]} --scene=${this.presetId.toUpperCase()}`,
-    );
+    this.footerCliEl = createEl('span', 'colophon-item colophon-cli', '');
+    this.syncFooterCli();
     this.footerRoot.appendChild(this.footerCliEl);
     this.footerRoot.appendChild(
       createEl(
