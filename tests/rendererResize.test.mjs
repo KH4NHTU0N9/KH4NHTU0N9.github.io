@@ -13,8 +13,6 @@ import {
   createSkyField,
 } from '../src/math/asciiScene.js';
 import { createCameraState } from '../src/math/projection3d.js';
-import { AmbientSkyRenderer } from '../src/math/ambientSkyRenderer.js';
-import { OscilloscopeRenderer } from '../src/math/scopeRenderer.js';
 
 function createStubCanvas(rectWidth, rectHeight) {
   return {
@@ -40,18 +38,12 @@ test('AsciiMathRenderer updates backing store at 680x640 dpr 1 instead of keepin
   assert.ok(renderer.grid.cols >= 44 && renderer.grid.rows >= 34);
 });
 
-test('OscilloscopeRenderer updates backing store at 360x84 dpr 1 instead of keeping 300x150 default', () => {
-  const canvas = createStubCanvas(360, 84);
-  const scope = new OscilloscopeRenderer(canvas);
-  assert.equal(canvas.width, 360);
-  assert.equal(canvas.height, 84);
-  assert.equal(scope.widthCss, 360);
-  assert.equal(scope.heightCss, 84);
-});
+test('buildAsciiScene generates finite bounded 3D cybersecurity volumetric clouds across mesh, cipher, and rf presets', () => {
+  assert.deepEqual(Object.keys(ASCII_SCENE_SPECS), ['mesh', 'cipher', 'rf']);
 
-test('buildAsciiScene generates finite bounded 3D volumetric clouds across presets', () => {
   for (const presetId of Object.keys(ASCII_SCENE_SPECS)) {
-    const scene = buildAsciiScene(presetId, 1.25, { freq: 1.3, amp: 1.1 });
+    const scene = buildAsciiScene(presetId, 1.25);
+    assert.equal(scene.preset, presetId);
     assert.ok(scene.count >= 1500, `${presetId} count should exceed 1500`);
     for (let i = 0; i < scene.count * 3; i++) {
       assert.ok(Number.isFinite(scene.positions[i]), `${presetId} position[${i}] finite`);
@@ -59,12 +51,17 @@ test('buildAsciiScene generates finite bounded 3D volumetric clouds across prese
       assert.ok(Math.abs(scene.positions[i]) < 5, `${presetId} position[${i}] bounded`);
     }
   }
+
+  // Backward-compatible legacy preset aliases resolve cleanly
+  assert.equal(buildAsciiScene('wave', 0.5).preset, 'mesh');
+  assert.equal(buildAsciiScene('spiro', 0.5).preset, 'cipher');
+  assert.equal(buildAsciiScene('tesseract', 0.5).preset, 'rf');
 });
 
 test('projectVolumetricToGrid populates math, ascii, and pure binary glyph modes', () => {
   const sky = createSkyField(2026);
   const camera = createCameraState();
-  const scene = buildAsciiScene('spiro', 0.8, { freq: 1.0, amp: 1.0 });
+  const scene = buildAsciiScene('cipher', 0.8);
   const bursts = new BurstPool();
   bursts.spawnUv(0.5, 0.5, 0.25);
   bursts.step(0.05);
@@ -103,15 +100,6 @@ test('projectVolumetricToGrid populates math, ascii, and pure binary glyph modes
   }
 });
 
-test('AmbientSkyRenderer updates backing store cleanly in Node without DOM window global', () => {
-  const canvas = createStubCanvas(1440, 900);
-  const ambient = new AmbientSkyRenderer(canvas, 4096);
-  assert.equal(canvas.width, 1440);
-  assert.equal(canvas.height, 900);
-  assert.equal(ambient.widthCss, 1440);
-  assert.equal(ambient.heightCss, 900);
-});
-
 test('HTML and ESM module graph share matching cache-bust version tokens', async () => {
   const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
   const cssMatch = html.match(/href="\.\/styles\/main\.css\?v=([^"]+)"/);
@@ -124,10 +112,8 @@ test('HTML and ESM module graph share matching cache-bust version tokens', async
   const modulesToCheck = [
     '../src/main.js',
     '../src/math/asciiArt.js',
-    '../src/math/ambientSkyRenderer.js',
     '../src/math/asciiRenderer.js',
     '../src/math/asciiScene.js',
-    '../src/math/scopeRenderer.js',
     '../src/ui/profileView.js',
   ];
   for (const relPath of modulesToCheck) {
