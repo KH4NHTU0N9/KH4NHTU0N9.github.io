@@ -1,5 +1,10 @@
-import { LANGUAGE_COLORS, PROFILE_DATA, isSafeExternalUrl } from '../data/profile.js?v=gcs25';
-import { generateFallbackSigilRows, sampleImagePixelsToAscii } from '../math/asciiArt.js?v=gcs25';
+import {
+  LANGUAGE_COLORS,
+  PROFILE_DATA,
+  TOOL_APPLICATIONS,
+  isSafeExternalUrl,
+} from '../data/profile.js?v=gcs26';
+import { generateFallbackSigilRows, sampleImagePixelsToAscii } from '../math/asciiArt.js?v=gcs26';
 
 function createEl(tag, className, text) {
   const el = document.createElement(tag);
@@ -42,26 +47,35 @@ const AVATAR_COLS = 16;
 const AVATAR_ROWS = 10;
 
 /**
- * Renders the Information Security student portfolio console, live pixel-sampled
- * ASCII portrait, verified `focus/` ASCII tree, tooling matrix, and repositories.
+ * Renders the Information Security Student portfolio console, Experience & Lab Log,
+ * curated Tooling Matrix with interactive grep, pinned Source Repositories, Printable
+ * Resume/CV modal, and Interactive Mini-CLI Footer.
  */
 export class ProfileView {
   /**
-   * @param {{ consoleRoot?: HTMLElement, heroRoot?: HTMLElement, sectionsRoot?: HTMLElement, footerRoot?: HTMLElement }} roots
+   * @param {{ consoleRoot?: HTMLElement, heroRoot?: HTMLElement, sectionsRoot?: HTMLElement, footerRoot?: HTMLElement, cvModalRoot?: HTMLElement }} roots
    * @param {typeof PROFILE_DATA} [profile]
+   * @param {{ onCliCommand?: (rawCmd: string) => { clear?: boolean, lines?: string[] } }} [callbacks]
    */
-  constructor({ consoleRoot, heroRoot, sectionsRoot, footerRoot } = {}, profile = PROFILE_DATA) {
+  constructor(
+    { consoleRoot, heroRoot, sectionsRoot, footerRoot, cvModalRoot } = {},
+    profile = PROFILE_DATA,
+    callbacks = {},
+  ) {
     this.consoleRoot = consoleRoot || heroRoot || null;
     this.sectionsRoot = sectionsRoot || null;
     this.footerRoot = footerRoot || null;
+    this.cvModalRoot = cvModalRoot || null;
     this.profile = profile;
+    this.callbacks = callbacks;
 
     this.activeDomainId = 'all';
     this.searchQuery = '';
     this.glyphMode = 'math';
     this.presetId = 'mesh';
     this.repoSource = 'fallback';
-    this.repoCount = this.profile.fallbackRepos.length;
+    this.activeRepos = [...this.profile.fallbackRepos];
+    this.repoCount = this.activeRepos.length;
 
     this.domainButtons = new Map();
     this.avatarCanvasEl = null;
@@ -69,17 +83,31 @@ export class ProfileView {
     this.avatarPixels = null;
     this.avatarRawPinned = false;
     this.avatarBadgeEl = null;
-    this.footerCliEl = null;
 
+    this.cmdWrapEl = null;
+    this.cmdInputEl = null;
+    this.cmdClearBtnEl = null;
     this.indexGridEl = null;
     this.reposGridEl = null;
     this.reposStatusEl = null;
 
+    this.cliFormEl = null;
+    this.cliInputEl = null;
+    this.cliOutputEl = null;
+    this.cliStatusEl = null;
+    this.cliHistory = [];
+    this.cliHistoryIdx = -1;
+
+    this.cvTriggerEl = null;
+    this.cvOpenerEl = null;
+    this.cvCloseBtnEl = null;
+
     this.renderConsole();
     this.renderSectionsBase();
     this.renderDomains('all');
-    this.renderRepos(this.profile.fallbackRepos, 'fallback');
+    this.renderRepos(this.activeRepos, 'fallback');
     this.renderFooter();
+    this.renderCvModal();
     this.drawAvatarCanvas(0);
   }
 
@@ -106,18 +134,13 @@ export class ProfileView {
       'Wireshark',
       'Binwalk',
       'The Sleuth Kit',
-      'Steghide',
     ]);
-    const hwTools = pickVerified(embItems, ['ESP32', 'Embedded C', 'Betaflight', 'PX4 Autopilot'], 3);
-    const hasRtl8720 = (this.profile.fallbackRepos || []).some((r) =>
-      String(r.name || '').toUpperCase().includes('RLT8720DN'),
-    );
-    const wirelessList = hasRtl8720 ? ['RLT8720dn (WiFi/BLE)', ...hwTools] : hwTools;
-    const sysTools = pickVerified(sysItems, ['Linux', 'Python', 'TypeScript', 'Docker']);
+    const hwTools = pickVerified(embItems, ['RTL8720DN', 'ESP32', 'Embedded C', 'Betaflight']);
+    const sysTools = pickVerified(sysItems, ['Python', 'TypeScript', 'GNU Bash', 'Docker']);
 
     return [
       { key: 'dfir/', value: dfirTools.join(' · ') },
-      { key: 'wireless/', value: wirelessList.join(' · ') },
+      { key: 'rf_mcu/', value: hwTools.join(' · ') },
       { key: 'systems/', value: sysTools.join(' · ') },
     ];
   }
@@ -133,13 +156,33 @@ export class ProfileView {
       this.avatarBadgeEl.textContent = MODE_LABELS[this.glyphMode];
     }
     this.drawAvatarCanvas(timeSec);
-    this.syncFooterCli();
+    this.syncCliStateBanner();
   }
 
   setPreset(presetId) {
     if (presetId) {
       this.presetId = presetId;
-      this.syncFooterCli();
+      this.syncCliStateBanner();
+    }
+  }
+
+  setGrepQuery(rawQuery) {
+    const normalized = String(rawQuery || '').trim().toLowerCase();
+    this.searchQuery = normalized;
+    if (this.cmdInputEl) {
+      this.cmdInputEl.value = normalized;
+    }
+    this.syncGrepUi();
+    this.renderDomains(this.activeDomainId);
+  }
+
+  syncGrepUi() {
+    const hasText = Boolean(this.cmdInputEl?.value);
+    if (this.cmdWrapEl) {
+      this.cmdWrapEl.classList.toggle('has-query', hasText);
+    }
+    if (this.cmdClearBtnEl) {
+      this.cmdClearBtnEl.hidden = !hasText;
     }
   }
 
@@ -234,12 +277,8 @@ export class ProfileView {
     metaStack.appendChild(
       createEl('span', 'hero-handle', `OPERATOR // @${this.profile.login} · ${this.profile.pronouns.toUpperCase()}`),
     );
-    metaStack.appendChild(
-      createEl('span', 'hero-disciplines', 'INFORMATION SECURITY STUDENT · EMBEDDED & SYSTEMS'),
-    );
-    metaStack.appendChild(
-      createEl('span', 'hero-ascii-note', '[HOVER/TAP PORTRAIT → ASCII/RAW]'),
-    );
+    metaStack.appendChild(createEl('span', 'hero-disciplines', this.profile.tagline.toUpperCase()));
+    metaStack.appendChild(createEl('span', 'hero-ascii-note', '[HOVER/TAP PORTRAIT → ASCII/RAW]'));
     identityStrip.appendChild(metaStack);
     body.appendChild(identityStrip);
 
@@ -249,16 +288,13 @@ export class ProfileView {
     body.appendChild(headingWrap);
     body.appendChild(createEl('p', 'hero-statement', this.profile.bio));
 
-    // Clean verified InfoSec focus ASCII tree
     const focusTree = createEl('div', 'focus-tree');
     focusTree.setAttribute('role', 'region');
     focusTree.setAttribute('aria-label', 'Information security focus areas');
 
     const focusHead = createEl('div', 'focus-tree__head');
     focusHead.appendChild(createEl('span', 'focus-root', 'focus/'));
-    focusHead.appendChild(
-      createEl('span', 'focus-meta', `${this.profile.stats.publicRepos} PUBLIC REPOS`),
-    );
+    focusHead.appendChild(createEl('span', 'focus-meta', `${this.profile.stats.publicRepos} PUBLIC REPOS`));
     focusTree.appendChild(focusHead);
 
     const focusEntries = this.buildFocusEntries();
@@ -275,10 +311,17 @@ export class ProfileView {
     body.appendChild(focusTree);
 
     const linkGrid = createEl('nav', 'hero-links');
-    linkGrid.setAttribute('aria-label', 'External profiles and direct contact');
+    linkGrid.setAttribute('aria-label', 'Resume and external contact links');
+
+    const cvBtn = createEl('button', 'grid-link grid-link--primary', '[↓ RESUME / CV]');
+    cvBtn.id = 'open-cv-btn';
+    cvBtn.type = 'button';
+    cvBtn.addEventListener('click', () => this.openCvModal(cvBtn));
+    this.cvTriggerEl = cvBtn;
+    linkGrid.appendChild(cvBtn);
+
     for (const s of this.profile.socials) {
-      const isPrimary = s.label === 'GitHub';
-      const cls = isPrimary ? 'grid-link grid-link--primary' : 'grid-link';
+      const cls = s.label === 'GitHub' ? 'grid-link grid-link--accent' : 'grid-link';
       linkGrid.appendChild(
         createSafeLink(s.url, cls, `[↗ ${s.label.toUpperCase()}]`, { allowMailto: s.allowMailto }),
       );
@@ -344,15 +387,48 @@ export class ProfileView {
     }
     this.sectionsRoot.textContent = '';
 
-    // 01 // Tooling & Capabilities Matrix (Security-first ordered)
+    // 01 // Experience & Lab Log (verified builds + open CTF/Cert slot)
+    const logSec = createEl('section', 'swiss-section');
+    logSec.id = 'experience-log';
+    const logBar = createEl('div', 'section-bar');
+    const logLeft = createEl('div', 'section-bar__left');
+    logLeft.appendChild(createEl('span', 'section-code', '┌─ 01 // EXPERIENCE & LAB LOG'));
+    logLeft.appendChild(createEl('span', 'status-tag', 'VERIFIED TRACK · JOURNAL'));
+    logBar.appendChild(logLeft);
+    logBar.appendChild(createEl('span', 'section-meta', 'SRC: GITHUB REPO HISTORY'));
+    logSec.appendChild(logBar);
+
+    const logList = createEl('div', 'log-list');
+    for (const entry of this.profile.technicalLog || []) {
+      const isOpenSlot = entry.id.startsWith('SLOT');
+      const row = createEl('article', isOpenSlot ? 'log-entry log-entry--slot' : 'log-entry');
+
+      const meta = createEl('div', 'log-entry__meta');
+      meta.appendChild(createEl('span', 'log-entry__id', `[${entry.id}]`));
+      meta.appendChild(createEl('span', 'log-entry__tag', entry.tag));
+      meta.appendChild(createEl('span', 'log-entry__scope', entry.scope));
+
+      const detail = createEl('div', 'log-entry__body');
+      detail.appendChild(createEl('h2', 'log-entry__title', entry.title));
+      detail.appendChild(createEl('p', 'log-entry__summary', entry.summary));
+
+      row.append(meta, detail);
+      logList.appendChild(row);
+    }
+    logSec.appendChild(logList);
+    this.sectionsRoot.appendChild(logSec);
+
+    // 02 // Tooling & Capabilities Matrix (curated core tools by application)
     const indexSec = createEl('section', 'swiss-section');
+    indexSec.id = 'tooling-matrix';
     const indexBar = createEl('div', 'section-bar');
     const indexLeft = createEl('div', 'section-bar__left');
-    indexLeft.appendChild(createEl('span', 'section-code', '┌─ 01 // TOOLING & CAPABILITIES'));
+    indexLeft.appendChild(createEl('span', 'section-code', '┌─ 02 // TOOLING & CAPABILITIES'));
 
-    const cmdWrap = createEl('div', 'cmd-filter-wrap');
+    this.cmdWrapEl = createEl('div', 'cmd-filter-wrap');
     const cmdLabel = createEl('label', 'cmd-prompt', '> grep');
     cmdLabel.setAttribute('for', 'stack-grep-input');
+
     const cmdInput = document.createElement('input');
     cmdInput.id = 'stack-grep-input';
     cmdInput.type = 'search';
@@ -361,19 +437,40 @@ export class ProfileView {
     cmdInput.autocomplete = 'off';
     cmdInput.spellcheck = false;
     cmdInput.setAttribute('aria-label', 'Filter engineering and security tools');
+    this.cmdInputEl = cmdInput;
+
+    const cmdCursor = createEl('span', 'cmd-cursor', '_');
+    cmdCursor.setAttribute('aria-hidden', 'true');
+
+    const cmdClearBtn = createEl('button', 'cmd-clear-btn', '[ESC / CLEAR]');
+    cmdClearBtn.type = 'button';
+    cmdClearBtn.hidden = true;
+    cmdClearBtn.setAttribute('aria-label', 'Clear tooling filter');
+    this.cmdClearBtnEl = cmdClearBtn;
+
+    const clearQuery = () => {
+      cmdInput.value = '';
+      this.searchQuery = '';
+      this.syncGrepUi();
+      this.renderDomains(this.activeDomainId);
+      cmdInput.focus();
+    };
+
+    cmdClearBtn.addEventListener('click', clearQuery);
     cmdInput.addEventListener('input', () => {
       this.searchQuery = cmdInput.value.trim().toLowerCase();
+      this.syncGrepUi();
       this.renderDomains(this.activeDomainId);
     });
     cmdInput.addEventListener('keydown', (ev) => {
       if (ev.key === 'Escape' && cmdInput.value) {
-        cmdInput.value = '';
-        this.searchQuery = '';
-        this.renderDomains(this.activeDomainId);
+        ev.preventDefault();
+        clearQuery();
       }
     });
-    cmdWrap.append(cmdLabel, cmdInput);
-    indexLeft.appendChild(cmdWrap);
+
+    this.cmdWrapEl.append(cmdLabel, cmdCursor, cmdInput, cmdClearBtn);
+    indexLeft.appendChild(this.cmdWrapEl);
     indexBar.appendChild(indexLeft);
 
     const filterRow = createEl('div', 'text-tabs');
@@ -382,7 +479,7 @@ export class ProfileView {
 
     const orderedDomains = this.getOrderedDomains();
     const totalCount = orderedDomains.reduce((sum, d) => sum + d.items.length, 0);
-    const allTab = createEl('button', 'text-tab is-active', `ALL (${totalCount})`);
+    const allTab = createEl('button', 'text-tab is-active', `CORE STACK (${totalCount})`);
     allTab.type = 'button';
     allTab.addEventListener('click', () => {
       this.renderDomains('all');
@@ -407,12 +504,13 @@ export class ProfileView {
     indexSec.appendChild(this.indexGridEl);
     this.sectionsRoot.appendChild(indexSec);
 
-    // 02 // Source Repositories Ledger
+    // 03 // Pinned Source Repositories Ledger
     const worksSec = createEl('section', 'swiss-section');
+    worksSec.id = 'source-repos';
     const worksBar = createEl('div', 'section-bar');
     const worksLeft = createEl('div', 'section-bar__left');
-    worksLeft.appendChild(createEl('span', 'section-code', '┌─ 02 // SOURCE REPOSITORIES'));
-    this.reposStatusEl = createEl('span', 'status-tag', 'SNAPSHOT');
+    worksLeft.appendChild(createEl('span', 'section-code', '┌─ 03 // SOURCE REPOSITORIES'));
+    this.reposStatusEl = createEl('span', 'status-tag', 'PINNED · SNAPSHOT');
     worksLeft.appendChild(this.reposStatusEl);
     worksBar.appendChild(worksLeft);
     worksBar.appendChild(
@@ -430,7 +528,7 @@ export class ProfileView {
   }
 
   /**
-   * Renders calm, scannable capability modules formatted as an ASCII directory tree.
+   * Renders curated tooling columns labeled by practical domain focus & role.
    * @param {string} domainId
    */
   renderDomains(domainId) {
@@ -454,7 +552,10 @@ export class ProfileView {
       .map((dom) => ({
         ...dom,
         filteredItems: q
-          ? dom.items.filter((item) => item.toLowerCase().includes(q))
+          ? dom.items.filter((item) => {
+              const role = TOOL_APPLICATIONS[item] || '';
+              return item.toLowerCase().includes(q) || role.toLowerCase().includes(q);
+            })
           : dom.items,
       }))
       .filter((dom) => !q || dom.filteredItems.length > 0);
@@ -467,7 +568,7 @@ export class ProfileView {
         createEl(
           'div',
           'index-empty',
-          `NO MODULES MATCHING "${this.searchQuery.toUpperCase()}" · CLEAR INPUT OR PRESS ESC`,
+          `NO TOOLS MATCHING "${this.searchQuery.toUpperCase()}" · CLICK [ESC / CLEAR]`,
         ),
       );
       return;
@@ -478,9 +579,7 @@ export class ProfileView {
 
       const colHead = createEl('div', 'index-col__head');
       colHead.appendChild(createEl('span', 'index-col__code', `┌─ ${DOMAIN_CODES[dom.id] || 'MOD.00'}`));
-      colHead.appendChild(
-        createEl('span', 'index-col__count', `${String(dom.filteredItems.length).padStart(2, '0')} UNITS`),
-      );
+      colHead.appendChild(createEl('span', 'index-col__count', dom.focusTier || 'FOCUS TRACK'));
       col.appendChild(colHead);
 
       col.appendChild(createEl('h2', 'index-col__title', dom.label));
@@ -491,10 +590,11 @@ export class ProfileView {
       dom.filteredItems.forEach((item, idx) => {
         const li = createEl('li', 'index-list__item');
         const treePrefix = idx === totalItems - 1 ? '└─' : '├─';
+        const role = TOOL_APPLICATIONS[item] || 'Core Tooling';
         li.append(
           createEl('span', 'index-list__tree', treePrefix),
-          createEl('span', 'index-list__num', String(idx + 1).padStart(2, '0')),
           createEl('span', 'index-list__name', item),
+          createEl('span', 'index-list__role', role),
         );
         ul.appendChild(li);
       });
@@ -504,7 +604,7 @@ export class ProfileView {
   }
 
   /**
-   * Renders clean public repository cards ordered as a structured terminal ledger.
+   * Renders curated, pinned repositories with verified technical summaries.
    * @param {Array<any>} repos
    * @param {'live' | 'fallback'} source
    */
@@ -513,8 +613,9 @@ export class ProfileView {
       return;
     }
     this.repoSource = source;
+    this.activeRepos = [...repos];
     this.repoCount = repos.length;
-    this.reposStatusEl.textContent = source === 'live' ? 'GITHUB API · LIVE' : 'SNAPSHOT';
+    this.reposStatusEl.textContent = source === 'live' ? 'PINNED · GITHUB LIVE' : 'PINNED · SNAPSHOT';
     this.reposGridEl.textContent = '';
 
     repos.forEach((repo, idx) => {
@@ -522,7 +623,7 @@ export class ProfileView {
 
       const head = createEl('div', 'ledger-cell__head');
       const idRow = createEl('div', 'ledger-cell__id');
-      idRow.appendChild(createEl('span', 'ledger-num', `┌─ REPO_${String(idx + 1).padStart(2, '0')}`));
+      idRow.appendChild(createEl('span', 'ledger-num', `┌─ PIN_${String(idx + 1).padStart(2, '0')}`));
       idRow.appendChild(createSafeLink(repo.htmlUrl, 'ledger-name', repo.name));
       head.appendChild(idRow);
 
@@ -533,7 +634,7 @@ export class ProfileView {
       head.appendChild(langWrap);
       cell.appendChild(head);
 
-      const summary = repo.description || `Public ${repo.language} source repository on GitHub.`;
+      const summary = repo.description || `Public ${repo.language} engineering repository on GitHub.`;
       cell.appendChild(createEl('p', 'ledger-desc', summary));
 
       const foot = createEl('div', 'ledger-cell__foot');
@@ -550,18 +651,136 @@ export class ProfileView {
       this.reposGridEl.appendChild(cell);
     });
 
-    this.syncFooterCli();
+    this.syncCliStateBanner();
+    this.renderCvModal();
   }
 
-  syncFooterCli() {
-    if (!this.footerCliEl) {
+  /**
+   * Builds and updates the accessible Printable Resume / CV Preview modal strictly
+   * from verified profile & repository data.
+   */
+  renderCvModal() {
+    if (!this.cvModalRoot) {
+      return;
+    }
+    const wasOpen = !this.cvModalRoot.hidden;
+    this.cvModalRoot.textContent = '';
+
+    const backdrop = createEl('div', 'cv-modal__backdrop');
+    backdrop.addEventListener('click', () => this.closeCvModal());
+
+    const panel = createEl('div', 'cv-modal__panel');
+    const toolbar = createEl('div', 'cv-modal__toolbar');
+    toolbar.appendChild(createEl('span', 'cv-modal__label', 'RESUME // PRINTABLE DOSSIER (PDF READY)'));
+
+    const actions = createEl('div', 'cv-modal__actions');
+    const printBtn = createEl('button', 'cv-btn cv-btn--primary', '[↓ PRINT / SAVE PDF]');
+    printBtn.type = 'button';
+    printBtn.addEventListener('click', () => {
+      if (typeof window !== 'undefined' && typeof window.print === 'function') {
+        window.print();
+      }
+    });
+    const closeBtn = createEl('button', 'cv-btn', '[✕ CLOSE]');
+    closeBtn.type = 'button';
+    closeBtn.addEventListener('click', () => this.closeCvModal());
+    this.cvCloseBtnEl = closeBtn;
+    actions.append(printBtn, closeBtn);
+    toolbar.appendChild(actions);
+
+    const sheet = createEl('article', 'cv-sheet');
+    const sheetHead = createEl('header', 'cv-sheet__head');
+    const title = createEl('h2', 'cv-sheet__name', `${this.profile.displayName} (@${this.profile.login})`);
+    title.id = 'cv-modal-title';
+    sheetHead.appendChild(title);
+    sheetHead.appendChild(createEl('p', 'cv-sheet__role', this.profile.tagline));
+    sheetHead.appendChild(
+      createEl(
+        'p',
+        'cv-sheet__contact',
+        'GitHub: github.com/KH4NHTU0N9  ·  Telegram: @KH4NHTU0NG  ·  Email: khanhtuong2302@gmail.com',
+      ),
+    );
+    sheet.appendChild(sheetHead);
+
+    const sumSec = createEl('section', 'cv-sheet__section');
+    sumSec.appendChild(createEl('h3', 'cv-sheet__heading', 'SUMMARY'));
+    sumSec.appendChild(createEl('p', 'cv-sheet__text', this.profile.bio));
+    sheet.appendChild(sumSec);
+
+    const skillsSec = createEl('section', 'cv-sheet__section');
+    skillsSec.appendChild(createEl('h3', 'cv-sheet__heading', 'TECHNICAL CAPABILITIES'));
+    const skillList = createEl('ul', 'cv-sheet__list');
+    for (const dom of this.getOrderedDomains()) {
+      const li = createEl('li', 'cv-sheet__item');
+      const strong = createEl('strong', '', `${dom.label}: `);
+      li.append(strong, document.createTextNode(dom.items.join(', ')));
+      skillList.appendChild(li);
+    }
+    skillsSec.appendChild(skillList);
+    sheet.appendChild(skillsSec);
+
+    const projSec = createEl('section', 'cv-sheet__section');
+    projSec.appendChild(createEl('h3', 'cv-sheet__heading', 'SELECTED SECURITY & ENGINEERING PROJECTS'));
+    const projList = createEl('ul', 'cv-sheet__list');
+    for (const repo of this.activeRepos.slice(0, 5)) {
+      const li = createEl('li', 'cv-sheet__item');
+      const strong = createEl('strong', '', `${repo.name} (${repo.language}): `);
+      li.append(strong, document.createTextNode(repo.description || 'Public source repository.'));
+      projList.appendChild(li);
+    }
+    projSec.appendChild(projList);
+    sheet.appendChild(projSec);
+
+    panel.append(toolbar, sheet);
+    this.cvModalRoot.append(backdrop, panel);
+    this.cvModalRoot.hidden = !wasOpen;
+  }
+
+  openCvModal(openerEl = null) {
+    if (!this.cvModalRoot) {
+      return;
+    }
+    this.cvOpenerEl = openerEl || this.cvTriggerEl;
+    this.cvModalRoot.hidden = false;
+    document.body.classList.add('is-modal-open');
+    this.cvCloseBtnEl?.focus();
+  }
+
+  closeCvModal() {
+    if (!this.cvModalRoot || this.cvModalRoot.hidden) {
+      return;
+    }
+    this.cvModalRoot.hidden = true;
+    document.body.classList.remove('is-modal-open');
+    this.cvOpenerEl?.focus?.();
+  }
+
+  isCvModalOpen() {
+    return Boolean(this.cvModalRoot && !this.cvModalRoot.hidden);
+  }
+
+  setCliOutput(lines = [], { clear = false } = {}) {
+    if (!this.cliOutputEl) {
+      return;
+    }
+    this.cliOutputEl.textContent = '';
+    if (clear || !Array.isArray(lines) || lines.length === 0) {
+      this.cliOutputEl.hidden = true;
+      return;
+    }
+    for (const line of lines.slice(0, 6)) {
+      this.cliOutputEl.appendChild(createEl('div', 'cli-output__line', String(line)));
+    }
+    this.cliOutputEl.hidden = false;
+  }
+
+  syncCliStateBanner() {
+    if (!this.cliStatusEl) {
       return;
     }
     const mode = MODE_LABELS[this.glyphMode] || 'MATH';
-    const nextCli = `${this.profile.login.toLowerCase()}@sec:~$ ./portfolio --scene=${this.presetId} --glyph=${mode.toLowerCase()} --repos=${this.repoCount}`;
-    if (this.footerCliEl.textContent !== nextCli) {
-      this.footerCliEl.textContent = nextCli;
-    }
+    this.cliStatusEl.textContent = `--scene=${this.presetId} --glyph=${mode.toLowerCase()} --pinned=${this.repoCount}`;
   }
 
   renderFooter() {
@@ -569,18 +788,92 @@ export class ProfileView {
       return;
     }
     this.footerRoot.textContent = '';
-    this.footerCliEl = createEl('span', 'colophon-item colophon-cli', '');
-    this.syncFooterCli();
-    this.footerRoot.appendChild(this.footerCliEl);
-    this.footerRoot.appendChild(
-      createEl(
-        'span',
-        'colophon-item colophon-item--mid',
-        `${this.profile.stats.publicRepos} REPOS · ${this.profile.stats.followers} FOLLOWER`,
-      ),
+
+    const shell = createEl('div', 'cli-shell');
+    this.cliOutputEl = createEl('div', 'cli-output');
+    this.cliOutputEl.setAttribute('role', 'status');
+    this.cliOutputEl.setAttribute('aria-live', 'polite');
+    this.cliOutputEl.hidden = true;
+    shell.appendChild(this.cliOutputEl);
+
+    const row = createEl('div', 'cli-bar');
+    const form = createEl('form', 'cli-form');
+    form.setAttribute('role', 'search');
+    form.setAttribute('aria-label', 'Interactive portfolio mini-CLI');
+
+    const promptLabel = createEl('label', 'cli-prompt', `${this.profile.login.toLowerCase()}@sec:~$`);
+    promptLabel.setAttribute('for', 'cli-cmd-input');
+
+    const input = document.createElement('input');
+    input.id = 'cli-cmd-input';
+    input.type = 'text';
+    input.className = 'cli-input';
+    input.autocomplete = 'off';
+    input.spellcheck = false;
+    input.placeholder = "help | whoami | scene rf | glyph bin | grep wireshark | cv | clear";
+    input.setAttribute('aria-label', 'Terminal command input');
+    this.cliInputEl = input;
+    this.cliFormEl = form;
+
+    const runBtn = createEl('button', 'cli-exec-btn', 'RUN ↵');
+    runBtn.type = 'submit';
+    form.append(promptLabel, input, runBtn);
+
+    const runCommandString = (raw) => {
+      const cmd = String(raw || '').trim();
+      if (!cmd) return;
+      if (this.cliHistory[0] !== cmd) {
+        this.cliHistory.unshift(cmd);
+        if (this.cliHistory.length > 20) this.cliHistory.pop();
+      }
+      this.cliHistoryIdx = -1;
+      const res = this.callbacks.onCliCommand?.(cmd);
+      if (res) {
+        this.setCliOutput(res.lines || [], { clear: Boolean(res.clear) });
+      }
+      input.value = '';
+    };
+
+    form.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      runCommandString(input.value);
+    });
+
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key === 'ArrowUp' && this.cliHistory.length > 0) {
+        ev.preventDefault();
+        this.cliHistoryIdx = Math.min(this.cliHistory.length - 1, this.cliHistoryIdx + 1);
+        input.value = this.cliHistory[this.cliHistoryIdx];
+      } else if (ev.key === 'ArrowDown') {
+        ev.preventDefault();
+        if (this.cliHistoryIdx > 0) {
+          this.cliHistoryIdx--;
+          input.value = this.cliHistory[this.cliHistoryIdx];
+        } else {
+          this.cliHistoryIdx = -1;
+          input.value = '';
+        }
+      }
+    });
+
+    const quick = createEl('div', 'cli-quick');
+    for (const quickCmd of ['help', 'whoami', 'cv', 'clear']) {
+      const btn = createEl('button', 'cli-chip', quickCmd);
+      btn.type = 'button';
+      btn.addEventListener('click', () => runCommandString(quickCmd));
+      quick.appendChild(btn);
+    }
+
+    const meta = createEl('div', 'colophon-meta');
+    this.cliStatusEl = createEl('span', 'colophon-state', '');
+    this.syncCliStateBanner();
+    meta.append(
+      this.cliStatusEl,
+      createSafeLink(this.profile.githubUrl, 'colophon-item colophon-link', '[GITHUB ↗]'),
     );
-    this.footerRoot.appendChild(
-      createSafeLink(this.profile.githubUrl, 'colophon-item colophon-link', '[KH4NHTU0N9.GITHUB.IO ↗]'),
-    );
+
+    row.append(form, quick, meta);
+    shell.appendChild(row);
+    this.footerRoot.appendChild(shell);
   }
 }

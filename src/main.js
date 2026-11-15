@@ -1,17 +1,23 @@
-import { clamp } from './math/mathArt.js?v=gcs25';
+import { clamp } from './math/mathArt.js?v=gcs26';
 import {
   ASCII_SCENE_SPECS,
   GLYPH_MODES,
   buildAsciiScene,
   createSkyField,
-} from './math/asciiScene.js?v=gcs25';
-import { AsciiMathRenderer } from './math/asciiRenderer.js?v=gcs25';
-import { createCameraState } from './math/projection3d.js?v=gcs25';
-import { PROFILE_DATA, fetchPublicReposWithFallback } from './data/profile.js?v=gcs25';
-import { ProfileView } from './ui/profileView.js?v=gcs25';
+} from './math/asciiScene.js?v=gcs26';
+import { AsciiMathRenderer } from './math/asciiRenderer.js?v=gcs26';
+import { createCameraState } from './math/projection3d.js?v=gcs26';
+import { PROFILE_DATA, fetchPublicReposWithFallback } from './data/profile.js?v=gcs26';
+import { ProfileView } from './ui/profileView.js?v=gcs26';
 
 const PRESET_ORDER = Object.keys(ASCII_SCENE_SPECS);
 const GLYPH_ORDER = Object.keys(GLYPH_MODES);
+
+const DECODE_POOL = {
+  math: '∑π∫±÷×∞·',
+  ascii: '.:-=+*#%@',
+  binary: '01011001',
+};
 
 function hasOwnPreset(presetId) {
   return Object.prototype.hasOwnProperty.call(ASCII_SCENE_SPECS, presetId);
@@ -139,18 +145,69 @@ function bindGlyphControls(glyphRoot, initialMode, onSelectGlyphMode) {
   return { sync };
 }
 
+function bindJumpNavigation(jumpsRoot) {
+  if (!jumpsRoot) {
+    return { setActiveByHref: () => {} };
+  }
+  const links = Array.from(jumpsRoot.querySelectorAll('a.jump-link'));
+
+  const setActiveByHref = (href) => {
+    for (const link of links) {
+      link.classList.toggle('is-active', link.getAttribute('href') === href);
+    }
+  };
+
+  for (const link of links) {
+    link.addEventListener('click', () => {
+      const href = link.getAttribute('href');
+      if (href) {
+        setActiveByHref(href);
+      }
+    });
+  }
+
+  if (typeof IntersectionObserver === 'function') {
+    const sections = links
+      .map((l) => {
+        const id = l.getAttribute('href')?.slice(1);
+        return id ? document.getElementById(id) : null;
+      })
+      .filter(Boolean);
+
+    if (sections.length > 0) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.isIntersecting) {
+              setActiveByHref(`#${entry.target.id}`);
+              break;
+            }
+          }
+        },
+        { rootMargin: '-25% 0px -60% 0px', threshold: 0.05 },
+      );
+      for (const sec of sections) {
+        observer.observe(sec);
+      }
+    }
+  }
+
+  return { setActiveByHref };
+}
+
 function initApp() {
   const appShell = document.getElementById('app-shell');
   const canvas = document.getElementById('math-canvas');
   const canvasStage = document.getElementById('canvas-stage');
   const navRoot = document.getElementById('nav-controls');
+  const jumpsRoot = document.getElementById('nav-jumps');
   const glyphRoot = document.getElementById('glyph-controls');
-  const telemetryRoot = document.getElementById('top-telemetry');
   const viewportBadgeEl = document.getElementById('viewport-badge');
   const viewportAttitudeEl = document.getElementById('viewport-attitude');
   const consoleRoot = document.getElementById('hero-content');
   const sectionsRoot = document.getElementById('profile-sections');
   const footerRoot = document.getElementById('site-footer');
+  const cvModalRoot = document.getElementById('cv-modal');
   const zenExitBtn = document.getElementById('zen-exit-btn');
 
   if (!appShell || !navRoot || !consoleRoot || !sectionsRoot || !footerRoot) {
@@ -179,9 +236,163 @@ function initApp() {
   const renderer = new AsciiMathRenderer(canvas);
   renderer.setGlyphMode(state.glyphMode);
 
+  let badgeDecodeRaf = null;
+  let badgeDecoding = false;
+
+  const formatBadgeText = (presetId = state.presetId) => {
+    const spec = ASCII_SCENE_SPECS[presetId] || ASCII_SCENE_SPECS.mesh;
+    return `${spec.code} · ${spec.label.toUpperCase()} · ${spec.equation}`;
+  };
+
+  function runBadgeDecodeTransition(modeId) {
+    if (!viewportBadgeEl) {
+      return;
+    }
+    if (badgeDecodeRaf !== null) {
+      cancelAnimationFrame(badgeDecodeRaf);
+      badgeDecodeRaf = null;
+    }
+
+    const modeLabel = GLYPH_MODES[modeId]?.label || 'MATH';
+    const settled = `${formatBadgeText(state.presetId)} · [${modeLabel}]`;
+    if (reducedMotionQuery?.matches) {
+      badgeDecoding = false;
+      viewportBadgeEl.textContent = formatBadgeText(state.presetId);
+      return;
+    }
+
+    const pool = DECODE_POOL[modeId] || DECODE_POOL.math;
+    const durationMs = 200;
+    const startMs = performance.now();
+    badgeDecoding = true;
+
+    const step = (nowMs) => {
+      const progress = clamp((nowMs - startMs) / durationMs, 0, 1);
+      if (progress >= 1) {
+        badgeDecoding = false;
+        badgeDecodeRaf = null;
+        viewportBadgeEl.textContent = formatBadgeText(state.presetId);
+        return;
+      }
+
+      const revealCount = Math.floor(progress * settled.length);
+      let out = '';
+      for (let i = 0; i < settled.length; i++) {
+        const ch = settled[i];
+        if (i < revealCount || ch === ' ' || ch === '·') {
+          out += ch;
+        } else {
+          out += pool[(i + Math.floor(nowMs * 0.08)) % pool.length];
+        }
+      }
+      viewportBadgeEl.textContent = out;
+      badgeDecodeRaf = requestAnimationFrame(step);
+    };
+
+    badgeDecodeRaf = requestAnimationFrame(step);
+  }
+
+  const jumpNav = bindJumpNavigation(jumpsRoot);
+
+  const navigateToSection = (sectionId) => {
+    const target = document.getElementById(sectionId);
+    if (!target) return false;
+    target.scrollIntoView({ behavior: reducedMotionQuery?.matches ? 'auto' : 'smooth', block: 'start' });
+    jumpNav.setActiveByHref(`#${sectionId}`);
+    return true;
+  };
+
+  const executeCliCommand = (rawInput) => {
+    const trimmed = String(rawInput || '').trim();
+    const clean = trimmed.replace(/^\.\//, '');
+    const tokens = clean.split(/\s+/).filter(Boolean);
+    const cmd = (tokens[0] || '').toLowerCase();
+    const arg = tokens.slice(1).join(' ');
+
+    if (cmd === 'help' || cmd === '?') {
+      return {
+        lines: [
+          'COMMANDS: whoami · scene <mesh|cipher|rf> · glyph <math|ascii|bin> · grep <tool> · goto <about|log|tooling|repos> · cv · reset · clear',
+        ],
+      };
+    }
+    if (cmd === 'whoami') {
+      return {
+        lines: [
+          `${PROFILE_DATA.displayName} (@${PROFILE_DATA.login}) — ${PROFILE_DATA.tagline}`,
+          'TRACKS: DFIR (Wireshark, Binwalk, TSK) · RF/MCU (RTL8720DN, ESP32, C) · Systems (Linux, Python, Docker)',
+        ],
+      };
+    }
+    if (cmd === 'ls') {
+      return {
+        lines: ['sections/: 00-about/  01-log/  02-tooling/  03-repos/'],
+      };
+    }
+    if (cmd === 'clear') {
+      return { clear: true, lines: [] };
+    }
+    if (cmd === 'cv' || cmd === 'resume') {
+      profileView.openCvModal();
+      return { lines: ['Opened Printable Resume / CV preview dialog (press Esc to close).'] };
+    }
+    if (cmd === 'reset') {
+      resetAll();
+      profileView.setGrepQuery('');
+      return { lines: ['Camera reset & tooling grep filter cleared.'] };
+    }
+    if (cmd === 'scene' || hasOwnPreset(cmd)) {
+      const targetPreset = hasOwnPreset(cmd) ? cmd : arg.toLowerCase();
+      if (hasOwnPreset(targetPreset)) {
+        switchPreset(targetPreset);
+        const spec = ASCII_SCENE_SPECS[targetPreset];
+        return { lines: [`3D scene -> ${spec.code} ${spec.label.toUpperCase()} (${spec.equation})`] };
+      }
+      return { lines: [`Usage: scene <${PRESET_ORDER.join('|')}>`] };
+    }
+    if (cmd === 'glyph' || cmd === 'math' || cmd === 'ascii' || cmd === 'bin' || cmd === 'binary') {
+      const rawMode = cmd === 'glyph' ? arg.toLowerCase() : cmd;
+      const modeId = rawMode === 'bin' ? 'binary' : rawMode;
+      if (Object.prototype.hasOwnProperty.call(GLYPH_MODES, modeId)) {
+        setGlyphMode(modeId);
+        return { lines: [`Glyph mode decoded -> ${GLYPH_MODES[modeId].label}`] };
+      }
+      return { lines: ['Usage: glyph <math|ascii|bin>'] };
+    }
+    if (cmd === 'grep' || cmd === 'find') {
+      profileView.setGrepQuery(arg);
+      navigateToSection('tooling-matrix');
+      return {
+        lines: [arg ? `Filtered Tooling & Capabilities by "${arg}".` : 'Cleared tooling filter.'],
+      };
+    }
+    if (cmd === 'goto' || cmd === 'cd') {
+      const targetKey = arg.toLowerCase().replace(/^0\d[-_\s]*/, '');
+      const map = {
+        about: 'about-section',
+        log: 'experience-log',
+        experience: 'experience-log',
+        tooling: 'tooling-matrix',
+        skills: 'tooling-matrix',
+        repos: 'source-repos',
+        projects: 'source-repos',
+      };
+      const domId = map[targetKey];
+      if (domId && navigateToSection(domId)) {
+        return { lines: [`Jumped to #${domId}.`] };
+      }
+      return { lines: ['Usage: goto <about|log|tooling|repos>'] };
+    }
+
+    return {
+      lines: [`sh: ${cmd}: command not found (try "help", "whoami", "scene rf", "glyph bin", "cv")`],
+    };
+  };
+
   const profileView = new ProfileView(
-    { consoleRoot, sectionsRoot, footerRoot },
+    { consoleRoot, sectionsRoot, footerRoot, cvModalRoot },
     PROFILE_DATA,
+    { onCliCommand: executeCliCommand },
   );
   profileView.setGlyphMode(state.glyphMode, state.presetId, 0);
 
@@ -204,20 +415,16 @@ function initApp() {
     }
     lastHudSyncMs = now;
 
-    const spec = ASCII_SCENE_SPECS[state.presetId] || ASCII_SCENE_SPECS.mesh;
     const yawText = formatWrappedDeg(state.camera.yawRad);
     const pitchText = formatWrappedDeg(state.camera.pitchRad);
     const zoomText = `${state.camera.zoom.toFixed(2)}×`;
     const gridText = `${lastGridStats.cols}×${lastGridStats.rows}`;
 
-    if (telemetryRoot) {
-      telemetryRoot.textContent = `AZ ${yawText} · EL ${pitchText} · ZM ${zoomText} · ${gridText}`;
-    }
-    if (viewportBadgeEl) {
-      viewportBadgeEl.textContent = `${spec.code} · ${spec.label.toUpperCase()} · ${spec.equation}`;
+    if (viewportBadgeEl && !badgeDecoding) {
+      viewportBadgeEl.textContent = formatBadgeText(state.presetId);
     }
     if (viewportAttitudeEl) {
-      viewportAttitudeEl.textContent = `AZ ${yawText} · EL ${pitchText} · ${gridText}`;
+      viewportAttitudeEl.textContent = `AZ ${yawText} · EL ${pitchText} · ZM ${zoomText} · ${gridText}`;
     }
   }
 
@@ -284,6 +491,7 @@ function initApp() {
       return;
     }
     state.presetId = presetId;
+    badgeDecoding = false;
     nav.sync(state);
     profileView.setPreset(state.presetId);
     renderFrameNow(true);
@@ -299,6 +507,7 @@ function initApp() {
     profileView.setGlyphMode(modeId, state.presetId, state.simTimeSec);
     glyphUi.sync(modeId);
     renderFrameNow(true);
+    runBadgeDecodeTransition(modeId);
   }
 
   function togglePause() {
@@ -428,6 +637,11 @@ function initApp() {
   zenExitBtn?.addEventListener('click', () => setZenMode(false));
 
   window.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape' && profileView.isCvModalOpen()) {
+      ev.preventDefault();
+      profileView.closeCvModal();
+      return;
+    }
     const tag = ev.target?.tagName?.toLowerCase();
     if (tag === 'input' || tag === 'textarea' || ev.metaKey || ev.ctrlKey || ev.altKey) {
       return;

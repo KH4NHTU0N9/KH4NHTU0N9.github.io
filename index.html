@@ -6,23 +6,28 @@
     <meta name="theme-color" content="#020308" />
     <meta
       name="description"
-      content="trankhanhtuong (@KH4NHTU0N9) — Information Security Student, Embedded & Systems Developer."
+      content="trankhanhtuong (@KH4NHTU0N9) — Information Security & Embedded Systems Student passionate about low-level tools, network analysis, and resilient software."
     />
     <title>trankhanhtuong · @KH4NHTU0N9</title>
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23020308'/%3E%3Crect x='10' y='10' width='44' height='44' fill='none' stroke='%23e2e8f0' stroke-width='2.5'/%3E%3Cline x1='10' y1='32' x2='54' y2='32' stroke='%2334d399' stroke-width='2.5'/%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23020308'/%3E%3Crect x='10' y='10' width='44' height='44' fill='none' stroke='%23f1f5f9' stroke-width='2.5'/%3E%3Cline x1='10' y1='32' x2='54' y2='32' stroke='%2334d399' stroke-width='2.5'/%3E%3C/svg%3E"
     />
-    <link rel="stylesheet" href="./styles/main.css?v=gcs25" />
+    <link rel="stylesheet" href="./styles/main.css?v=gcs26" />
   </head>
   <body>
     <div id="app-shell" class="app-shell">
       <header class="top-bar">
-        <div class="top-bar__brand">
+        <a href="#about-section" class="top-bar__brand">
           <span class="signal-led" aria-hidden="true"></span>
           <span>~/kh4nhtu0n9</span>
-        </div>
-        <div id="top-telemetry" class="top-bar__telemetry" aria-hidden="true"></div>
+        </a>
+        <nav id="nav-jumps" class="top-bar__jumps" aria-label="Portfolio sections">
+          <a class="jump-link is-active" href="#about-section">00 // ABOUT</a>
+          <a class="jump-link" href="#experience-log">01 // LOG</a>
+          <a class="jump-link" href="#tooling-matrix">02 // TOOLING</a>
+          <a class="jump-link" href="#source-repos">03 // REPOS</a>
+        </nav>
         <nav id="nav-controls" class="top-bar__controls" aria-label="Scene preset and viewport controls"></nav>
       </header>
 
@@ -31,7 +36,7 @@
       </button>
 
       <main class="cockpit-main">
-        <div class="cockpit-deck">
+        <div id="about-section" class="cockpit-deck">
           <section id="hero-content" class="cockpit-console" aria-label="Information security student dossier">
             <div class="pane-header">
               <span class="pane-title">~/kh4nhtu0n9 $ whoami</span>
@@ -41,12 +46,12 @@
               <div class="hero-id-strip">
                 <div class="hero-meta-stack">
                   <span class="hero-handle">OPERATOR // @KH4NHTU0N9 · HE/HIM</span>
-                  <span class="hero-disciplines">INFORMATION SECURITY STUDENT · EMBEDDED &amp; SYSTEMS</span>
+                  <span class="hero-disciplines">INFORMATION SECURITY &amp; EMBEDDED SYSTEMS STUDENT</span>
                 </div>
               </div>
               <h1 class="hero-display-name">trankhanhtuong</h1>
               <p class="hero-statement">
-                i'm fascinating in coding some tools which can help world look supercalifragilisticexpialidocious
+                Information Security &amp; Embedded Systems student passionate about building low-level tools, network analysis utilities, and resilient software.
               </p>
               <nav class="hero-links" aria-label="Primary links">
                 <a class="grid-link grid-link--primary" href="https://github.com/KH4NHTU0N9" target="_blank" rel="noopener noreferrer">GITHUB ↗</a>
@@ -54,7 +59,7 @@
                 <a class="grid-link" href="mailto:khanhtuong2302@gmail.com">EMAIL ↗</a>
               </nav>
               <noscript>
-                <p class="boot-warning">JavaScript is disabled. Enable JS to run the 3D ASCII &amp; Math renderer.</p>
+                <p class="boot-warning">JavaScript is disabled. Enable JS to run the interactive 3D ASCII visualizer and mini-CLI.</p>
               </noscript>
             </div>
           </section>
@@ -78,12 +83,14 @@
           </section>
         </div>
 
-        <section id="profile-sections" class="sections-stack" aria-label="Tooling capabilities and source repositories"></section>
+        <section id="profile-sections" class="sections-stack" aria-label="Experience log, tooling capabilities and repositories"></section>
       </main>
 
       <footer id="site-footer" class="colophon-bar"></footer>
     </div>
 
-    <script type="module" src="./src/main.js?v=gcs25"></script>
+    <div id="cv-modal" class="cv-modal" role="dialog" aria-modal="true" aria-labelledby="cv-modal-title" hidden></div>
+
+    <script type="module" src="./src/main.js?v=gcs26"></script>
   </body>
 </html>
