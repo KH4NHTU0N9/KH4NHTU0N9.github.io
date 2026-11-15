@@ -1,10 +1,11 @@
-import { DEFAULT_ART_PARAMS, clamp } from './math/mathArt.js?v=gcs23';
-import { ASCII_SCENE_SPECS, GLYPH_MODES, buildAsciiScene, createSkyField } from './math/asciiScene.js?v=gcs23';
-import { AsciiMathRenderer } from './math/asciiRenderer.js?v=gcs23';
-import { createCameraState } from './math/projection3d.js?v=gcs23';
-import { OscilloscopeRenderer } from './math/scopeRenderer.js?v=gcs23';
-import { PROFILE_DATA, fetchPublicReposWithFallback } from './data/profile.js?v=gcs23';
-import { ProfileView } from './ui/profileView.js?v=gcs23';
+import { DEFAULT_ART_PARAMS, clamp } from './math/mathArt.js?v=gcs24';
+import { ASCII_SCENE_SPECS, GLYPH_MODES, buildAsciiScene, createSkyField } from './math/asciiScene.js?v=gcs24';
+import { AsciiMathRenderer } from './math/asciiRenderer.js?v=gcs24';
+import { AmbientSkyRenderer } from './math/ambientSkyRenderer.js?v=gcs24';
+import { createCameraState } from './math/projection3d.js?v=gcs24';
+import { OscilloscopeRenderer } from './math/scopeRenderer.js?v=gcs24';
+import { PROFILE_DATA, fetchPublicReposWithFallback } from './data/profile.js?v=gcs24';
+import { ProfileView } from './ui/profileView.js?v=gcs24';
 
 const PRESET_ORDER = Object.keys(ASCII_SCENE_SPECS);
 const GLYPH_ORDER = Object.keys(GLYPH_MODES);
@@ -137,6 +138,7 @@ function bindGlyphControls(glyphRoot, initialMode, onSelectGlyphMode) {
 
 function initApp() {
   const appShell = document.getElementById('app-shell');
+  const ambientCanvas = document.getElementById('ambient-sky-canvas');
   const canvas = document.getElementById('math-canvas');
   const canvasStage = document.getElementById('canvas-stage');
   const navRoot = document.getElementById('nav-controls');
@@ -170,7 +172,12 @@ function initApp() {
     simTimeSec: 0,
   };
 
+  document.documentElement.dataset.glyphMode = state.glyphMode;
+
   const skyField = createSkyField(2026);
+  const ambientSky = ambientCanvas ? new AmbientSkyRenderer(ambientCanvas, 4096) : null;
+  ambientSky?.setGlyphMode(state.glyphMode);
+
   const renderer = new AsciiMathRenderer(canvas);
   renderer.setGlyphMode(state.glyphMode);
 
@@ -186,10 +193,12 @@ function initApp() {
         }
         renderFrameNow(true);
       },
+      onSelectGlyphMode: (modeId) => setGlyphMode(modeId),
     },
   );
   const scopeCanvas = profileView.getScopeCanvas();
   const scopeRenderer = scopeCanvas ? new OscilloscopeRenderer(scopeCanvas) : null;
+  scopeRenderer?.setGlyphMode(state.glyphMode);
 
   const nav = buildHeaderControls(navRoot, state, {
     onSelectPreset: (presetId) => switchPreset(presetId),
@@ -229,6 +238,7 @@ function initApp() {
     profileView.updateScopeReadout(lastScopeStats);
   }
 
+  let ambientTickCounter = 0;
   function renderFrameNow(forceTelemetry = false) {
     const scene = buildAsciiScene(state.presetId, state.simTimeSec, state.params);
     const frameResult = renderer.render(scene, state.camera, skyField, state.simTimeSec);
@@ -239,8 +249,17 @@ function initApp() {
         activeGlyphs: frameResult.activeGlyphs || 0,
       };
     }
+
+    if (ambientSky && (forceTelemetry || ambientTickCounter % 2 === 0)) {
+      ambientSky.render(state.simTimeSec);
+    }
+    ambientTickCounter++;
+
     if (scene && scopeRenderer && !state.zen) {
-      lastScopeStats = scopeRenderer.render(scene);
+      lastScopeStats = scopeRenderer.render(scene, state.glyphMode);
+    }
+    if (!state.zen) {
+      profileView.updateAsciiUi(state.simTimeSec, state.presetId, forceTelemetry);
     }
     syncTelemetry(forceTelemetry);
   }
@@ -297,6 +316,7 @@ function initApp() {
     }
     state.presetId = presetId;
     nav.sync(state);
+    profileView.setGlyphMode(state.glyphMode, state.presetId, state.simTimeSec);
     renderFrameNow(true);
   }
 
@@ -305,7 +325,11 @@ function initApp() {
       return;
     }
     state.glyphMode = modeId;
+    document.documentElement.dataset.glyphMode = modeId;
     renderer.setGlyphMode(modeId);
+    ambientSky?.setGlyphMode(modeId);
+    scopeRenderer?.setGlyphMode(modeId);
+    profileView.setGlyphMode(modeId, state.presetId, state.simTimeSec);
     glyphUi.sync(modeId);
     renderFrameNow(true);
   }
@@ -336,6 +360,7 @@ function initApp() {
       zenExitBtn.hidden = !state.zen;
     }
     requestAnimationFrame(() => {
+      ambientSky?.resize();
       renderer.resize();
       scopeRenderer?.resize();
       renderFrameNow(true);
@@ -466,6 +491,7 @@ function initApp() {
   });
 
   const handleViewportResize = () => {
+    ambientSky?.resize();
     renderer.resize();
     scopeRenderer?.resize();
     renderFrameNow();
@@ -480,6 +506,7 @@ function initApp() {
     }
   }
 
+  ambientSky?.resize();
   renderer.resize();
   scopeRenderer?.resize();
   renderFrameNow(true);
