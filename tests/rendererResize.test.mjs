@@ -13,6 +13,7 @@ import {
   createSkyField,
 } from '../src/math/asciiScene.js';
 import { createCameraState } from '../src/math/projection3d.js';
+import { AmbientSkyRenderer } from '../src/math/ambientSkyRenderer.js';
 import { OscilloscopeRenderer } from '../src/math/scopeRenderer.js';
 
 function createStubCanvas(rectWidth, rectHeight) {
@@ -102,6 +103,15 @@ test('projectVolumetricToGrid populates math, ascii, and pure binary glyph modes
   }
 });
 
+test('AmbientSkyRenderer updates backing store cleanly in Node without DOM window global', () => {
+  const canvas = createStubCanvas(1440, 900);
+  const ambient = new AmbientSkyRenderer(canvas, 4096);
+  assert.equal(canvas.width, 1440);
+  assert.equal(canvas.height, 900);
+  assert.equal(ambient.widthCss, 1440);
+  assert.equal(ambient.heightCss, 900);
+});
+
 test('HTML and ESM module graph share matching cache-bust version tokens', async () => {
   const html = await fs.readFile(new URL('../index.html', import.meta.url), 'utf8');
   const cssMatch = html.match(/href="\.\/styles\/main\.css\?v=([^"]+)"/);
@@ -113,6 +123,8 @@ test('HTML and ESM module graph share matching cache-bust version tokens', async
   const token = jsMatch[1];
   const modulesToCheck = [
     '../src/main.js',
+    '../src/math/asciiArt.js',
+    '../src/math/ambientSkyRenderer.js',
     '../src/math/asciiRenderer.js',
     '../src/math/asciiScene.js',
     '../src/math/scopeRenderer.js',
