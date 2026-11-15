@@ -1,37 +1,35 @@
 # Project Execution Plan — KH4NHTU0N9.github.io
 
 ## Phase 1: Initiation (Khởi tạo)
-- **Mục tiêu (Objective):** Tái cấu trúc giao diện thành **Information Security Student Portfolio (`https://kh4nhtu0n9.github.io/`)** gọn gàng, điềm tĩnh chuẩn SecOps terminal, sử dụng 3D Cybersecurity ASCII/Math làm điểm nhấn chính thay vì các bảng điều khiển hiệu ứng rườm rà.
+- **Mục tiêu (Objective):** Nâng cấp portfolio An toàn Thông tin & Hệ thống Nhúng (`https://kh4nhtu0n9.github.io/`) chuẩn nhà tuyển dụng: sửa ngữ pháp/phong cách câu Bio, ghim 6 dự án cốt lõi với mô tả xác thực từ mã nguồn README thật trên GitHub, tinh gọn kỹ năng còn 20 công cụ chuyên môn cao, bổ sung `01 // EXPERIENCE & LAB LOG`, nút `[↓ RESUME / CV]` (Print-to-PDF), nhảy mục trên Navbar, tối ưu Mobile Dossier-first, hiệu ứng giải mã `0.2s` trên `MATH | ASCII | BIN` và thanh CLI tương tác tại footer.
 - **Phạm vi (In-scope):**
-  - **Loại bỏ nhiễu thị giác (Visual De-clutter):** Gỡ bỏ nền hạt sao cuộn toàn trang (`#ambient-sky-canvas`), Oscilloscope hero (`#scope-canvas`), 4 thanh trượt synth, dải sóng Horizon động, `<pre>` nhấp nháy trong card và thanh đo nhị phân `1001` cạnh từng kỹ năng.
-  - **Bộ đôi bảng màu SecOps điềm tĩnh:** Nền `#020308` / `#060911`, điểm nhấn Phosphor Emerald (`#34d399`) + Cold Cyan (`#38bdf8`).
-  - **3 mô hình 3D An toàn thông tin (`src/math/asciiScene.js`):** `01 MESH` (Packet/Defense Mesh), `02 CIPHER` (Modular Cipher Torus `(2,5)`), `03 RF` (Dipole & WiFi/BLE Field) giữ công tắc `MATH | ASCII | BIN` và chế độ `SOLO [H]`.
-  - **Dossier Sinh viên An toàn Thông tin (`src/ui/profileView.js`):** Hiển thị đúng dữ liệu đã xác thực trong `PROFILE_DATA` (DFIR, WiFi/BLE `RLT8720dn`, `ESP32`/Embedded, Linux/Systems) qua cây thư mục `focus/` tĩnh gọn gàng, cùng ảnh đại diện `ASCII/RAW` 16×10.
-  - **Sắp xếp ma trận kỹ năng theo thứ tự An toàn thông tin:** Đưa `MOD.01` (`Security & Forensics`) lên đầu bảng kỹ năng (`MOD.02 Embedded & Flight`, `MOD.03 Systems, Data & Cloud`) dưới dạng cây ASCII tĩnh (`├─` / `└─`).
+  - **Bio & Dossier (`src/data/profile.js`, `src/ui/profileView.js`):** Áp dụng Bio chuẩn *"Information Security & Embedded Systems student passionate about building low-level tools, network analysis utilities, and resilient software."* cùng nút `[↓ RESUME / CV]` nổi bật cạnh `[↗ GITHUB]` mở hộp thoại Print-to-PDF tổng hợp từ dữ liệu thật (`@media print`).
+  - **Experience & Lab Log (`#experience-log`):** Ghi nhận 4 nhật ký kỹ thuật/bảo mật thực tế (`RTL8720DN Wi-Fi/BLE`, `Systemd Auto-Healing`, `UAV Thermal-RGB SAR`, `Cisco NWC204 Network Design`) + 1 `SLOT_05` minh bạch sẵn sàng cho giải CTF/Chứng chỉ khi người dùng bổ sung.
+  - **Curated Tooling (`20` công cụ) & Interactive `> grep`:** Loại bỏ các công cụ văn phòng/phổ thông (VS Code, Notion, Adobe, Windows Terminal, Audacity), chỉ giữ 20 công cụ chuyên môn (`Security & DFIR`, `Embedded, RF & UAV`, `Systems & Automation`) kèm vai trò thực tế, bổ sung con trỏ nháy `_` và nút `[ESC / CLEAR]`.
+  - **Pinned Repositories (`6` dự án cốt lõi):** Đọc/đối chiếu nội dung thật từ GitHub API (`contents` & `README.md`) để viết mô tả chính xác và dùng `PINNED_REPO_ORDER` loại bỏ các repo bài tập đại cương hoặc tên nhạy cảm.
+  - **Điều hướng, Tương phản & Terminal UX:** Đưa `00 // ABOUT`, `01 // LOG`, `02 // TOOLING`, `03 // REPOS` lên Navbar, đưa tọa độ 3D vào hẳn bên trong `#canvas-stage`, nâng độ sáng màu chữ phụ (`#cbd5e1` / `#94a3b8`), đảo Dossier lên trên 3D viewport trên Mobile (`<= 980px`), thêm decode `200ms` ở `#viewport-badge`, và kích hoạt footer thành interactive mini-CLI (`help`, `whoami`, `ls`, `scene`, `glyph`, `grep`, `goto`, `cv`, `reset`, `clear`).
 - **Tài liệu tham khảo:**
   1. [GitHub Docs — About GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/about-github-pages)
-  2. [MDN Web Docs — CanvasRenderingContext2D](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D)
-  3. [MDN Web Docs — CORS settings attributes (`crossorigin`)](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/crossorigin)
-  4. [Node.js Documentation — Test runner (`node:test`)](https://nodejs.org/api/test.html)
-  5. [W3C WAI — ARIA Authoring Practices Guide](https://www.w3.org/WAI/ARIA/apg/)
+  2. [MDN Web Docs — Window: print() method](https://developer.mozilla.org/en-US/docs/Web/API/Window/print)
+  3. [MDN Web Docs — @media print](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/At-rules/@media)
+  4. [MDN Web Docs — IntersectionObserver API](https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver)
+  5. [W3C WAI — Dialog (Modal) Pattern](https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/)
 
 ## Phase 2: Planning (Lập kế hoạch)
-- **Kiến trúc tối giản & độ tin cậy:**
-  - Giữ duy nhất vòng lặp 3D `#math-canvas` ở khung bên phải Hero, tự dừng `rAF` khi bật `PAUSE` hoặc `prefers-reduced-motion`, không còn `rAF` nền toàn trang hay timer chớp DOM `9Hz`.
-  - Kiểm soát chặt tràn ngang `0px` (`scrollWidth <= innerWidth`) trên cả Desktop (`1440×900`) và Mobile (`390×844`), và đảm bảo vùng `RETURN [H]` ở `SOLO [H]` tách bạch với công tắc `[MATH | ASCII | BIN]`.
-  - Đồng bộ token chống cache `?v=gcs25` xuyên suốt HTML, CSS và mọi ESM module.
+- **Kiến trúc tối ưu & bảo mật:**
+  - Bộ lọc allowlist `PINNED_REPO_ORDER` đảm bảo GitHub REST API trực tiếp chỉ hiển thị đúng 6 dự án cốt lõi đã xác thực mô tả ngay cả khi có repo mới đẩy lên GitHub.
+  - Mini-CLI hoàn toàn an toàn (`textContent` 100%, không `eval`/`innerHTML`), lưu lịch sử lệnh bằng phím mũi tên, tự bỏ qua phím nóng toàn cục (`Space/H/G/R/1-3`) khi con trỏ đang nhập trong `<input>`.
+  - Đồng bộ cache-bust token `?v=gcs26` xuyên suốt HTML, CSS và toàn bộ ESM modules.
 
 ## Phase 3: Execution (Thực thi)
 - **Task Tracker:**
-  - [x] Gỡ bỏ `src/math/ambientSkyRenderer.js` và `src/math/scopeRenderer.js`.
-  - [x] Viết lại `src/math/asciiScene.js` với 3 mô hình 3D InfoSec (`mesh`, `cipher`, `rf`) và bảng màu Emerald/Cyan.
-  - [x] Tinh gọn `src/math/asciiArt.js` chỉ còn trình lấy mẫu pixel ảnh chân dung và fallback sigil.
-  - [x] Tinh chỉnh `src/math/asciiRenderer.js` (`?v=gcs25`) theo tông radar Emerald/Cyan dịu mắt.
-  - [x] Thiết kế lại `src/ui/profileView.js`, `src/main.js`, `index.html`, `styles/main.css` theo bố cục Dossier & Tree sạch sẽ.
-  - [x] Cập nhật `tests/asciiArt.test.mjs` và `tests/rendererResize.test.mjs` cho `?v=gcs25`.
+  - [x] Kiểm tra README & cấu trúc mã nguồn thực tế của 6 repo ghim trên GitHub API.
+  - [x] Cập nhật `src/data/profile.js` (Bio mới, 20 công cụ chuyên môn + `TOOL_APPLICATIONS`, `technicalLog`, `PINNED_REPO_ORDER` & mô tả chuẩn).
+  - [x] Nâng cấp `src/ui/profileView.js`, `src/main.js`, `index.html`, `styles/main.css` (`?v=gcs26`) cho Navbar jumps, `#experience-log`, `> grep` cursor + clear button, Printable CV Modal (`@media print`), Decode `200ms`, Mobile Dossier-first, và Interactive Mini-CLI Footer.
+  - [x] Cập nhật `tests/profileData.test.mjs` và đồng bộ lockstep `?v=gcs26` trong toàn bộ `src/math/*.js`.
 
 ## Phase 4: Monitoring (Giám sát)
-- Thực thi `node --test tests/*.test.mjs`, `node --check`, kiểm thử trình duyệt cục bộ (Desktop `1440×900` + scroll toàn trang + Mobile `390×844`) và kiểm tra trực tiếp trên `https://kh4nhtu0n9.github.io/` sau deploy.
+- Thực thi `node --test tests/*.test.mjs`, `node --check`, kiểm thử trình duyệt cục bộ & trực tiếp trên `https://kh4nhtu0n9.github.io/` cả Desktop (`1440×900`) lẫn Mobile (`390×844`) — bao gồm interactive mini-CLI, CV modal, `grep`, decode animation, Dossier-first mobile order và `0` lỗi console/network.
 
 ## Phase 5: Closure (Đóng dự án)
-- Dọn server tạm, commit atomic theo từng lớp, đẩy lên `origin/main`, xác nhận GitHub Actions Pages & kiểm chứng trang live lần cuối.
+- Dọn sạch tiến trình tạm, commit atomic theo lớp, push `origin/main` và xác nhận build live thành công trên GitHub Pages.
