@@ -1,5 +1,5 @@
-import { clamp, spectralRgbUnit } from './mathArt.js?v=gcs25';
-import { GLYPH_MODES } from './asciiScene.js?v=gcs25';
+import { clamp, spectralRgbUnit } from './mathArt.js?v=gcs26';
+import { GLYPH_MODES } from './asciiScene.js?v=gcs26';
 
 const TAU = Math.PI * 2;
 
