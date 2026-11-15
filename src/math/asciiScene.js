@@ -1,4 +1,4 @@
-import { clamp, normalizeArtParams, spectralRgbUnit } from './mathArt.js?v=gcs23';
+import { clamp, normalizeArtParams, spectralRgbUnit } from './mathArt.js?v=gcs24';
 
 const TAU = Math.PI * 2;
 

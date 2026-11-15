@@ -1,5 +1,5 @@
-import { clamp } from './mathArt.js?v=gcs23';
-import { GLYPH_MODES, PART_KINDS } from './asciiScene.js?v=gcs23';
+import { clamp } from './mathArt.js?v=gcs24';
+import { GLYPH_MODES, PART_KINDS } from './asciiScene.js?v=gcs24';
 
 const TAU = Math.PI * 2;
 const BACKDROP_HEX = '#020308';
