@@ -1,36 +1,36 @@
 # Project Execution Plan — KH4NHTU0N9.github.io
 
 ## Phase 1: Initiation (Khởi tạo)
-- **Mục tiêu (Objective):** Xây dựng trang giới thiệu cá nhân (`https://kh4nhtu0n9.github.io/`) kết hợp **Operator Console & Real-Time Signal Scope (`UNIT_01`)** bên trái và **3D Volumetric ASCII & Math Renderer** lấy cảm hứng trực tiếp từ repo `ASCII-CHRISTMAS` ở khung phải (gỡ bỏ hoàn toàn khung `CAM_01 // MANIFOLD` và reticle/trục CAD rườm rà).
+- **Mục tiêu (Objective):** Tích hợp xuyên suốt thẩm mỹ & engine **3D/2D Volumetric ASCII, Math & Binary (`MATH | ASCII | BIN`)** trên toàn bộ portfolio (`https://kh4nhtu0n9.github.io/`) — đồng bộ từ nền vũ trụ toàn trang, ảnh đại diện lấy mẫu pixel thực, Oscilloscope & Spectrum, thanh sóng Horizon cho đến từng mô-đun kỹ năng (`01 // CAPABILITY MATRIX`), thẻ repository (`02 // SOURCE REPOSITORIES`) và terminal footer.
 - **Phạm vi (In-scope):**
-  - Cockpit 2 cột desktop (`UNIT_01` Console + Volumetric ASCII/Math Canvas) và xếp dọc mobile (Viewport trên, `UNIT_01` dưới).
-  - Bộ kết xuất 3D ASCII/Math Z-buffer (`src/math/asciiScene.js`, `src/math/asciiRenderer.js`) với nền đêm `#020308`, cực quang shimmering, sao lấp lánh, sao băng định kỳ, hạt trôi tiền/hậu cảnh, chiếu sáng Blinn-Phong + rim + ambient light bounce, scatter khi hover chuột, nổ tia sáng khi click, pre-baked glow sprites 60fps không cấp phát gradient lặp trong vòng vẽ, và 3 chế độ ký tự chuyển đổi trực tiếp: **`MATH`** (` ·+-±×÷π∑∫∞`), **`ASCII`** (` .:-=+*#%@`), **`BIN`** (` 00010111`).
-  - 3 hình học 3D thể tích thực: **`01 WAVE`** (harmonic interference lattice + ripples), **`02 KNOT`** (`(3,5)` Frenet-framed torus knot tube), **`03 CORE`** (Fibonacci geodesic sphere + 3 gyroscope gimbal rings).
-  - Oscilloscope thời gian thực (`src/math/scopeRenderer.js`) và 4 thanh trượt phần cứng (`freq`, `amp`, `speed`, `zoom`) tác động đồng thời lên đám mây ký tự 3D và sóng phổ.
-  - Bảng kỹ thuật `01 // CAPABILITY MATRIX` (`> grep`) và `02 // SOURCE REPOSITORIES`.
+  - **Nền sao vũ trụ toàn trang (`AmbientSkyRenderer`):** Canvas cố định `#ambient-sky-canvas` (`#020308`) đồng bộ chế độ ký tự phía sau các lớp kính mờ toàn trang.
+  - **Khung viewport 3D chính (`AsciiMathRenderer` + `asciiScene.js`):** 3D Z-buffer Blinn-Phong (`01 WAVE`, `02 KNOT`, `03 CORE`) với hover scatter, click burst, pre-baked glow sprites 60fps.
+  - **ASCII Portrait & Fallback Sigil (`ProfileView`):** Lấy mẫu màu thực từ avatar GitHub (`crossOrigin="anonymous"`) thành ma trận ký tự màu 16×10 + nút hover/tap chuyển `RAW` <-> `ASCII`.
+  - **ASCII Oscilloscope & Spectrum (`OscilloscopeRenderer`):** Vẽ trực tiếp dao động `Y(x,t)` và phổ 16 dải bằng glyph `MATH | ASCII | BIN`.
+  - **ASCII Portfolio Modules & Blueprints (`asciiArt.js`):** Divider Horizon động + công tắc `[MATH] [ASCII] [BIN]` giữa trang; 3 mô-đun telemetry động (`MOD.01`..`MOD.03`) với cấu trúc cây `├─`/`└─` và signal meter mỗi kỹ năng; 6 thẻ repo kèm hình sóng toán học/nhị phân riêng biệt tính tất định theo tên & ngôn ngữ; terminal CLI status bar ở footer.
 - **Tài liệu tham khảo:**
-  1. [GitHub Docs — What is GitHub Pages?](https://docs.github.com/en/pages/getting-started-with-github-pages/what-is-github-pages)
+  1. [GitHub Docs — About GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/about-github-pages)
   2. [MDN Web Docs — CanvasRenderingContext2D](https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D)
-  3. [MDN Web Docs — Pointer Events](https://developer.mozilla.org/en-US/docs/Web/API/Pointer_events)
-  4. [Node.js Documentation — Test runner (`node:test`)](https://nodejs.org/api/test.html)
+  3. [MDN Web Docs — CORS settings attributes (`crossorigin`)](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/crossorigin)
+  4. [MDN Web Docs — CSS Containment (`contain`)](https://developer.mozilla.org/en-US/docs/Web/CSS/contain)
+  5. [Node.js Documentation — Test runner (`node:test`)](https://nodejs.org/api/test.html)
 
 ## Phase 2: Planning (Lập kế hoạch)
-- **Kiến trúc hệ thống:**
-  - `src/math/mathArt.js`: Giữ nguyên API `ART_PRESETS`, `sampleMathArtScene`, `normalizeArtParams` và xuất `spectralRgbUnit(t)` để dùng chung bảng phổ.
-  - `src/math/asciiScene.js`: Buffer tái sử dụng `Float32Array`/`Uint8Array` (tối đa 6000 điểm, 0 GC churn), sinh `positions`, `normals`, `colors`, `kinds`, `phase`, `shine` cho `wave`, `spiro`, `tesseract` cùng trường sao & hạt trôi `createSkyField()`.
-  - `src/math/asciiRenderer.js`: Tách biệt `createAsciiGrid()`, `projectVolumetricToGrid()`, `BurstPool` (test thuần trong Node) và `AsciiMathRenderer` (quản lý DPR backing store, pre-baked 32×32 glow sprites tối ưu 60fps, render 2 pass).
-  - `index.html`, `styles/main.css`, `src/main.js`, `src/math/scopeRenderer.js`, `src/ui/profileView.js`: Gỡ `CAM_01`, thêm pill kính mờ kiểu `ASCII-CHRISTMAS` + công tắc `MATH | ASCII | BIN`, khóa cache `?v=gcs23`.
+- **Kiến trúc tối ưu hiệu năng:**
+  - Bộ máy 3D (`#math-canvas`) chạy 60fps; nền sao (`#ambient-sky-canvas`) cập nhật nửa tần số khi hoạt động; các `<pre>`/DOM ASCII widgets tiết lưu ở ~9Hz (`115ms`), chỉ ghi DOM khi chuỗi thay đổi và gắn CSS `contain: layout style; overflow: hidden; white-space: pre;` để triệt tiêu reflow.
+  - Dừng toàn bộ `rAF` khi bật `PAUSE` (trừ spark nổ tức thời), và kiểm tra chặt độ rộng `<= 36` ký tự ở card để đảm bảo `0px` tràn ngang trên Mobile `390×844`.
+  - Đồng bộ cache-bust token `?v=gcs24` trên mọi file HTML/CSS/ESM.
 
 ## Phase 3: Execution (Thực thi)
 - **Task Tracker:**
-  - [x] Export `spectralRgbUnit()` trong `src/math/mathArt.js` mà không phá tương thích ngược.
-  - [x] Xây dựng `src/math/asciiScene.js` & `src/math/asciiRenderer.js` chuẩn Z-buffer, Blinn-Phong lighting, hover scatter, click burst, pre-baked glow sprites.
-  - [x] Gỡ bỏ `CAM_01 // MANIFOLD`, đường trục/thước CAD, và tệp thừa `src/math/renderer.js`; cập nhật UI tối giản phủ kính `#020308` + nút `MATH | ASCII | BIN`.
-  - [x] Đồng bộ `scopeRenderer.js`, `main.js`, `profileView.js`, `index.html`, `styles/main.css` lên token `?v=gcs23`.
-  - [x] Mở rộng bộ test `tests/rendererResize.test.mjs` kiểm chứng cả Z-buffer math/ascii/binary projection.
+  - [x] Mở rộng `src/math/asciiArt.js` cho toàn bộ trình sinh ASCII toàn trang (Horizon, Domain telemetry, Repo blueprint, Skill meter, RGBA pixel-to-ASCII sampler).
+  - [x] Tạo `src/math/ambientSkyRenderer.js` + `#ambient-sky-canvas` phủ toàn bộ nền trang web.
+  - [x] Chuyển đổi `src/math/scopeRenderer.js` sang vẽ ASCII/Math/Binary waveform + spectrum.
+  - [x] Tích hợp toàn diện vào `src/ui/profileView.js`, `src/main.js`, `index.html`, `styles/main.css`.
+  - [x] Bổ sung `tests/asciiArt.test.mjs` và cập nhật `tests/rendererResize.test.mjs` (`?v=gcs24`).
 
 ## Phase 4: Monitoring (Giám sát)
-- Đang chạy `node --test tests/*.test.mjs`, `node --check src/**/*.js`, kiểm thử trình duyệt thực tế Desktop (`1440×900`) & Mobile (`390×844`) trên local server và live `https://kh4nhtu0n9.github.io/`.
+- Đang chạy `node --test tests/*.test.mjs`, `node --check`, kiểm thử trình duyệt thực tế toàn trang Desktop (`1440×900`, cuộn xuống xem Matrix/Repos/Footer) & Mobile (`390×844`) trên local và live `https://kh4nhtu0n9.github.io/`.
 
 ## Phase 5: Closure (Đóng dự án)
 - Hoàn tất kiểm thử, dọn file tạm, commit atomic theo từng phần, push `origin/main` và xác thực live URL `https://kh4nhtu0n9.github.io/`.
