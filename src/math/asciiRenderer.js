@@ -1,5 +1,5 @@
-import { clamp } from './mathArt.js?v=gcs24';
-import { GLYPH_MODES, PART_KINDS } from './asciiScene.js?v=gcs24';
+import { clamp } from './mathArt.js?v=gcs25';
+import { GLYPH_MODES, PART_KINDS } from './asciiScene.js?v=gcs25';
 
 const TAU = Math.PI * 2;
 const BACKDROP_HEX = '#020308';
@@ -111,41 +111,40 @@ function writeCell(grid, col, row, depth, ch, cr, cg, cb, glowFlag, kind) {
  */
 function renderBackdropSky(grid, skyField, timeSec, glyphMode) {
   const { cols, rows } = grid;
-  const auroraMaxRow = Math.floor(rows * 0.36);
+  const bandRows = Math.floor(rows * 0.32);
   const rampMode = glyphMode === 'binary' ? 'binary' : glyphMode === 'ascii' ? 'ascii' : 'math';
   const auroraPool = rampMode === 'ascii' ? AURORA_ASCII_GLYPHS : AURORA_GLYPHS;
-
-  // 1. Aurora curtain shimmer in top 36%
-  for (let row = 0; row < auroraMaxRow; row++) {
-    const vNorm = row / Math.max(1, auroraMaxRow);
+  // 1. Subdued emerald-cyan atmospheric shimmer in top 32%
+  for (let row = 0; row < bandRows; row++) {
+    const vNorm = row / Math.max(1, bandRows);
     const curtainFade = 1 - vNorm;
     for (let col = 0; col < cols; col++) {
       const h = cellHash01(col, row);
-      if (h > 0.16) continue;
+      if (h > 0.11) continue;
       const uNorm = col / cols;
       const wave =
-        Math.sin(uNorm * 8.5 + timeSec * 0.72 + vNorm * 3.1) * 0.5 +
-        Math.cos(uNorm * 14.0 - timeSec * 0.48 + Math.sin(uNorm * 4) * 2.0) * 0.5;
+        Math.sin(uNorm * 7.2 + timeSec * 0.55 + vNorm * 2.6) * 0.5 +
+        Math.cos(uNorm * 12.5 - timeSec * 0.38 + Math.sin(uNorm * 3.5) * 1.8) * 0.5;
       const band = Math.max(0, wave) * curtainFade;
-      if (band < 0.24) continue;
+      if (band < 0.28) continue;
 
       const ch =
         rampMode === 'binary'
-          ? (col + row + Math.floor(timeSec * 2)) % 2 === 0
+          ? (col + row + Math.floor(timeSec * 1.5)) % 2 === 0
             ? '0'
             : '1'
           : auroraPool[Math.min(auroraPool.length - 1, Math.floor(band * (auroraPool.length - 1)) + 1)];
       if (ch === ' ') continue;
 
-      const hueMix = 0.5 + 0.5 * Math.sin(uNorm * 5.0 + timeSec * 0.35);
-      const r = 18 + 38 * hueMix * band;
-      const g = (88 + 90 * (1 - hueMix)) * band;
-      const b = (118 + 82 * hueMix) * band;
+      const hueMix = 0.5 + 0.5 * Math.sin(uNorm * 4.5 + timeSec * 0.3);
+      const r = (10 + 18 * hueMix) * band;
+      const g = (76 + 68 * (1 - hueMix)) * band;
+      const b = (78 + 74 * hueMix) * band;
       writeCell(grid, col, row, 1000, ch, r, g, b, 0, 254);
     }
   }
 
-  // 2. Twinkling starfield
+  // 2. Sparse background nodes
   if (skyField?.stars) {
     const stars = skyField.stars;
     for (let i = 0; i < stars.length; i++) {
@@ -154,34 +153,34 @@ function renderBackdropSky(grid, skyField, timeSec, glyphMode) {
       const row = Math.floor(s.v * rows);
       const twinkle = 0.45 + 0.55 * Math.sin(timeSec * s.speed + s.phase);
       const lum = s.bright * twinkle;
-      if (lum < 0.28) continue;
+      if (lum < 0.30) continue;
 
       let ch = s.glyph;
       if (rampMode === 'binary') ch = i % 2 === 0 ? '0' : '1';
       else if (rampMode === 'ascii' && ch === '·') ch = '.';
 
-      const base = 115 + 130 * lum;
-      writeCell(grid, col, row, 950, ch, base * 0.85, base * 0.94, base, 0, 253);
+      const base = 78 + 92 * lum;
+      writeCell(grid, col, row, 950, ch, base * 0.45, base * 0.92, base * 0.88, 0, 253);
     }
   }
 
-  // 3. Diagonal shooting meteor every ~5.8 seconds
-  const cycle = timeSec % 5.8;
-  if (cycle < 0.95) {
-    const prog = cycle / 0.95;
-    const headCol = Math.floor(cols * (0.12 + prog * 0.72));
-    const headRow = Math.floor(rows * (0.06 + prog * 0.24));
-    for (let seg = 0; seg < 6; seg++) {
-      const fade = 1 - seg / 6;
+  // 3. Subtle periodic packet tracer across upper edge (~7.4s period)
+  const cycle = timeSec % 7.4;
+  if (cycle < 0.85) {
+    const prog = cycle / 0.85;
+    const headCol = Math.floor(cols * (0.14 + prog * 0.72));
+    const headRow = Math.floor(rows * (0.08 + prog * 0.14));
+    for (let seg = 0; seg < 5; seg++) {
+      const fade = 1 - seg / 5;
       const ch =
         rampMode === 'binary'
           ? seg === 0
             ? '1'
             : '0'
           : seg === 0
-            ? '*'
+            ? '+'
             : seg < 3
-              ? '+'
+              ? '-'
               : '·';
       writeCell(
         grid,
@@ -189,10 +188,10 @@ function renderBackdropSky(grid, skyField, timeSec, glyphMode) {
         headRow - seg,
         920,
         ch,
-        255 * fade,
-        215 * fade,
-        155 * fade,
-        seg < 2 ? 1 : 0,
+        56 * fade,
+        211 * fade,
+        180 * fade,
+        seg === 0 ? 1 : 0,
         252,
       );
     }
@@ -483,8 +482,8 @@ export function projectVolumetricToGrid(grid, scene, camera, skyField = null, op
         : 1.0;
 
     const lum = clamp(
-      illum * depthAtten * shine[i] * pulse + hoverBoost + (kind === PART_KINDS.SURFACE ? 0.07 : 0),
-      0.12,
+      illum * depthAtten * shine[i] * pulse + hoverBoost + (kind === PART_KINDS.SURFACE ? 0.14 : 0),
+      0.16,
       1.0,
     );
     let rampIdx = Math.max(1, Math.round(lum * rampMax));
@@ -496,9 +495,9 @@ export function projectVolumetricToGrid(grid, scene, camera, skyField = null, op
     }
 
     const ch = ramp[rampIdx] || ramp[rampMax];
-    const cr = colors[o3] * 255 * clamp(illum * 0.92 + hoverBoost, 0.22, 1.15);
-    const cg = colors[o3 + 1] * 255 * clamp(illum * 0.94 + hoverBoost, 0.22, 1.15);
-    const cb = colors[o3 + 2] * 255 * clamp(illum * 0.96 + hoverBoost, 0.22, 1.15);
+    const cr = colors[o3] * 255 * clamp(illum * 0.96 + hoverBoost, 0.36, 1.18);
+    const cg = colors[o3 + 1] * 255 * clamp(illum * 0.98 + hoverBoost, 0.38, 1.18);
+    const cb = colors[o3 + 2] * 255 * clamp(illum * 1.0 + hoverBoost, 0.38, 1.18);
     const hasGlow =
       kind === PART_KINDS.BEACON || kind === PART_KINDS.CORE || (kind === PART_KINDS.SURFACE && lum > 0.91);
 
@@ -520,9 +519,10 @@ export function projectVolumetricToGrid(grid, scene, camera, skyField = null, op
       const col = Math.round(spk.u * grid.cols);
       const row = Math.round(spk.v * grid.rows);
       const ch = burstPool[spk.idx % burstPool.length];
-      const br = Math.round((130 + 125 * Math.cos(spk.tint * TAU)) * fade);
-      const bg = Math.round((160 + 95 * Math.cos((spk.tint + 0.33) * TAU)) * fade);
-      const bb = Math.round((200 + 55 * Math.cos((spk.tint + 0.66) * TAU)) * fade);
+      const mix = 0.5 + 0.5 * Math.cos(spk.tint * TAU);
+      const br = Math.round((48 + 42 * mix) * fade);
+      const bg = Math.round((205 + 48 * mix) * fade);
+      const bb = Math.round((172 + 80 * (1 - mix)) * fade);
       writeCell(grid, col, row, 0.25, ch, br, bg, bb, fade > 0.35 ? 1 : 0, PART_KINDS.BEACON);
     }
   }

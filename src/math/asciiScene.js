@@ -1,4 +1,4 @@
-import { clamp, normalizeArtParams, spectralRgbUnit } from './mathArt.js?v=gcs24';
+import { clamp, spectralRgbUnit } from './mathArt.js?v=gcs25';
 
 const TAU = Math.PI * 2;
 
@@ -10,388 +10,438 @@ export const PART_KINDS = Object.freeze({
 });
 
 export const GLYPH_MODES = Object.freeze({
-  math: Object.freeze({
+  math: {
     id: 'math',
     label: 'MATH',
     ramp: ' ·+-±×÷π∑∫∞',
-  }),
-  ascii: Object.freeze({
+  },
+  ascii: {
     id: 'ascii',
     label: 'ASCII',
     ramp: ' .:-=+*#%@',
-  }),
-  binary: Object.freeze({
+  },
+  binary: {
     id: 'binary',
     label: 'BIN',
     ramp: ' 00010111',
-  }),
+  },
 });
 
 export const ASCII_SCENE_SPECS = Object.freeze({
-  wave: Object.freeze({
-    id: 'wave',
+  mesh: {
+    id: 'mesh',
     code: '01',
-    label: 'Wave',
-    equation: 'y(x,z,t) = Σ Aₙ·sin(kₙx + ωₙt + φz)',
-  }),
-  spiro: Object.freeze({
-    id: 'spiro',
+    label: 'Mesh',
+    equation: 'G(V,E) · packet_mesh(S², θ, t)',
+  },
+  cipher: {
+    id: 'cipher',
     code: '02',
-    label: 'Knot',
-    equation: 'γ(t) = ((R + r·cos qt)cos pt, r·sin qt, (R + r·cos qt)sin pt)',
-  }),
-  tesseract: Object.freeze({
-    id: 'tesseract',
+    label: 'Cipher',
+    equation: 'Enc(k,m) ∈ ℤₚ × T² · helix(2,5)',
+  },
+  rf: {
+    id: 'rf',
     code: '03',
-    label: 'Core',
-    equation: 'S²(u,v) ⊕ ⋃ SO(3) gimbal rings(t)',
-  }),
+    label: 'RF',
+    equation: 'Ψ(r,θ,t) = J₀(kr)·cos(ωt) · WiFi/BLE',
+  },
 });
 
-function createRng(seed = 2026) {
-  let state = seed >>> 0;
+const MAX_POINTS = 5600;
+
+function createPointBuffer(capacity) {
+  return {
+    capacity,
+    count: 0,
+    positions: new Float32Array(capacity * 3),
+    normals: new Float32Array(capacity * 3),
+    colors: new Float32Array(capacity * 3),
+    kinds: new Uint8Array(capacity),
+    phase: new Float32Array(capacity),
+    shine: new Float32Array(capacity),
+    reset() {
+      this.count = 0;
+    },
+    push(x, y, z, nx, ny, nz, r, g, b, kind, phase, shine) {
+      if (this.count >= this.capacity) return;
+      const i = this.count;
+      const o3 = i * 3;
+      this.positions[o3] = x;
+      this.positions[o3 + 1] = y;
+      this.positions[o3 + 2] = z;
+      this.normals[o3] = nx;
+      this.normals[o3 + 1] = ny;
+      this.normals[o3 + 2] = nz;
+      this.colors[o3] = r;
+      this.colors[o3 + 1] = g;
+      this.colors[o3 + 2] = b;
+      this.kinds[i] = kind;
+      this.phase[i] = phase;
+      this.shine[i] = shine;
+      this.count++;
+    },
+  };
+}
+
+const SHARED_BUFFER = createPointBuffer(MAX_POINTS);
+
+function createRng(seed) {
+  let s = seed >>> 0;
   return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
 
-class ScenePointBuffer {
-  constructor(capacity = 5200) {
-    this.positions = new Float32Array(capacity * 3);
-    this.normals = new Float32Array(capacity * 3);
-    this.colors = new Float32Array(capacity * 3);
-    this.kinds = new Uint8Array(capacity);
-    this.phase = new Float32Array(capacity);
-    this.shine = new Float32Array(capacity);
-    this.count = 0;
-    this.capacity = capacity;
-  }
-
-  reset() {
-    this.count = 0;
-  }
-
-  push(x, y, z, nx, ny, nz, r, g, b, kind, phase = 0, shine = 0.4) {
-    if (this.count >= this.capacity) {
-      return;
-    }
-    const i = this.count;
-    const i3 = i * 3;
-    this.positions[i3] = x;
-    this.positions[i3 + 1] = y;
-    this.positions[i3 + 2] = z;
-    this.normals[i3] = nx;
-    this.normals[i3 + 1] = ny;
-    this.normals[i3 + 2] = nz;
-    this.colors[i3] = r;
-    this.colors[i3 + 1] = g;
-    this.colors[i3 + 2] = b;
-    this.kinds[i] = kind;
-    this.phase[i] = phase;
-    this.shine[i] = shine;
-    this.count = i + 1;
-  }
+/**
+ * Maps a [0, 1] scalar into a disciplined SecOps palette:
+ * Deep Slate-Teal -> Phosphor Emerald -> Cold Cyan -> Ice Mint.
+ */
+function cyberColorRgb(t) {
+  const w = ((t % 1) + 1) % 1;
+  // Blend constrained spectral slice [0.36 .. 0.62] (emerald -> cyan -> azure)
+  const band = 0.36 + 0.26 * (0.5 - 0.5 * Math.cos(w * TAU));
+  const [sr, sg, sb] = spectralRgbUnit(band);
+  return [
+    clamp(sr * 0.62 + 0.08, 0.06, 0.72),
+    clamp(sg * 0.92 + 0.14, 0.28, 0.98),
+    clamp(sb * 0.92 + 0.16, 0.26, 0.98),
+  ];
 }
 
-const SHARED_BUFFER = new ScenePointBuffer(6000);
-
-function appendGroundDisc(buf, timeSec, freq, radius = 1.92) {
-  const rings = 11;
-  const floorY = -0.96;
-
-  for (let ring = 1; ring <= rings; ring++) {
-    const radFrac = ring / rings;
-    const rRing = radius * radFrac;
-    const count = Math.round(14 + radFrac * 44);
-    for (let j = 0; j < count; j++) {
-      const theta = (j / count) * TAU + ring * 0.21;
-      const x = rRing * Math.cos(theta);
-      const z = rRing * Math.sin(theta);
-      const ripple = 0.025 * Math.sin(radFrac * 8.0 * freq - timeSec * 1.6);
-      const [cr, cg, cb] = spectralRgbUnit(0.55 + radFrac * 0.14 + 0.04 * Math.sin(theta));
-      const fade = 0.36 + 0.38 * (1 - radFrac);
-      buf.push(
-        x,
-        floorY + ripple,
-        z,
-        0,
-        1,
-        0,
-        cr * fade,
-        cg * fade,
-        Math.min(1, cb * fade * 1.15),
-        PART_KINDS.GROUND,
-        theta,
-        0.1,
-      );
+function appendRadarHorizon(buf, timeSec, floorY = -1.04) {
+  const rings = [
+    { rad: 0.58, count: 44 },
+    { rad: 1.05, count: 68 },
+    { rad: 1.52, count: 88 },
+  ];
+  for (let rIdx = 0; rIdx < rings.length; rIdx++) {
+    const ring = rings[rIdx];
+    for (let i = 0; i < ring.count; i++) {
+      const a = (i / ring.count) * TAU + timeSec * (rIdx % 2 === 0 ? 0.08 : -0.06);
+      const px = Math.cos(a) * ring.rad;
+      const pz = Math.sin(a) * ring.rad;
+      const isNode = i % 11 === 0;
+      const [cr, cg, cb] = isNode ? [0.22, 0.92, 0.68] : [0.16, 0.52, 0.74];
+      buf.push(px, floorY, pz, 0, 1, 0, cr, cg, cb, PART_KINDS.GROUND, a, isNode ? 0.78 : 0.42);
     }
   }
 }
 
-function populateWaveVolumetric(buf, timeSec, { freq, amp }) {
-  const rows = 46;
-  const cols = 74;
-  const spanX = 2.7;
-  const spanZ = 2.15;
+/**
+ * Scene 01: 3D Network Defense Dome & Routed Packet Topology (`mesh`).
+ */
+function populateMeshVolumetric(buf, timeSec) {
+  const rad = 0.98;
+  const centerY = 0.08;
 
-  for (let r = 0; r < rows; r++) {
-    const v = r / (rows - 1);
-    const z = (v - 0.5) * spanZ;
-    for (let c = 0; c < cols; c++) {
-      const u = c / (cols - 1);
-      const x = (u - 0.5) * spanX;
-      const env = 0.62 + 0.38 * Math.cos((u - 0.5) * Math.PI);
-      const p1 = 2.4 * freq * x + timeSec * 1.05 + z * 1.45;
-      const p2 = 4.1 * z - timeSec * 0.78 + x * freq;
-      const p3 = 6.2 * freq * x - timeSec * 1.4;
-
-      const y =
-        0.12 +
-        amp * env * (0.42 * Math.sin(p1) + 0.2 * Math.cos(p2) + 0.1 * Math.sin(p3));
-
-      // Analytical surface gradient -> true normal vector for directional specular lighting
-      const dydx =
-        amp *
-        env *
-        (0.42 * 2.4 * freq * Math.cos(p1) -
-          0.2 * freq * Math.sin(p2) +
-          0.1 * 6.2 * freq * Math.cos(p3));
-      const dydz =
-        amp * env * (0.42 * 1.45 * Math.cos(p1) - 0.2 * 4.1 * Math.sin(p2));
-      const nLen = Math.hypot(-dydx, 1, -dydz) || 1;
-      const nx = -dydx / nLen;
-      const ny = 1 / nLen;
-      const nz = -dydz / nLen;
-
-      const hue = 0.06 + 0.78 * u + 0.12 * Math.sin(v * Math.PI + timeSec * 0.25);
-      const [cr, cg, cb] = spectralRgbUnit(hue);
-      const isCrestBeacon = r % 9 === 4 && c % 11 === 5 && y > 0.22;
+  // 1. Geodesic latitude + longitude wireframe lattice (crisp wireframe silhouette)
+  const latLines = 11;
+  const latSteps = 54;
+  for (let li = 1; li < latLines; li++) {
+    const phi = (li / latLines) * Math.PI - Math.PI * 0.5;
+    const cp = Math.cos(phi);
+    const sp = Math.sin(phi);
+    for (let s = 0; s < latSteps; s++) {
+      const theta = (s / latSteps) * TAU;
+      const nx = cp * Math.cos(theta);
+      const ny = sp;
+      const nz = cp * Math.sin(theta);
+      const [cr, cg, cb] = cyberColorRgb(li / latLines + 0.15);
       buf.push(
-        x,
-        y,
-        z,
+        nx * rad,
+        centerY + ny * rad,
+        nz * rad,
         nx,
         ny,
         nz,
         cr,
         cg,
         cb,
-        isCrestBeacon ? PART_KINDS.BEACON : PART_KINDS.SURFACE,
-        u * 4 + v * 3,
-        isCrestBeacon ? 1.0 : 0.65,
+        PART_KINDS.SURFACE,
+        theta,
+        0.78,
       );
     }
   }
 
-  appendGroundDisc(buf, timeSec, freq, 1.95);
+  const lonLines = 14;
+  const lonSteps = 44;
+  for (let lo = 0; lo < lonLines; lo++) {
+    const theta = (lo / lonLines) * TAU;
+    const ct = Math.cos(theta);
+    const st = Math.sin(theta);
+    for (let s = 0; s < lonSteps; s++) {
+      const phi = (s / lonSteps) * TAU;
+      const nx = Math.cos(phi) * ct;
+      const ny = Math.sin(phi);
+      const nz = Math.cos(phi) * st;
+      const [cr, cg, cb] = cyberColorRgb(lo / lonLines);
+      buf.push(
+        nx * rad,
+        centerY + ny * rad,
+        nz * rad,
+        nx,
+        ny,
+        nz,
+        cr,
+        cg,
+        cb,
+        PART_KINDS.SURFACE,
+        phi,
+        0.82,
+      );
+    }
+  }
+
+  // 2. Inner Encrypted Security Core
+  const innerCount = 340;
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  const innerRad = 0.32;
+  for (let i = 0; i < innerCount; i++) {
+    const fy = 1 - (i / (innerCount - 1)) * 2;
+    const r = Math.sqrt(Math.max(0, 1 - fy * fy));
+    const th = golden * i - timeSec * 0.45;
+    const nx = Math.cos(th) * r;
+    const ny = fy;
+    const nz = Math.sin(th) * r;
+    const isKey = i % 29 === 0;
+    buf.push(
+      nx * innerRad,
+      centerY + ny * innerRad,
+      nz * innerRad,
+      nx,
+      ny,
+      nz,
+      isKey ? 0.55 : 0.2,
+      isKey ? 1.0 : 0.9,
+      isKey ? 0.85 : 0.65,
+      isKey ? PART_KINDS.BEACON : PART_KINDS.CORE,
+      i * 0.3,
+      isKey ? 1.0 : 0.86,
+    );
+  }
+
+  // 3. Orbiting Network Packet Streams (6 crisscrossing great circles)
+  for (let stream = 0; stream < 6; stream++) {
+    const tiltX = stream * 0.52 + 0.3;
+    const tiltZ = stream * 0.88 - 0.5;
+    const cx = Math.cos(tiltX);
+    const sx = Math.sin(tiltX);
+    const cz = Math.cos(tiltZ);
+    const sz = Math.sin(tiltZ);
+    const headAngle = timeSec * (1.2 + stream * 0.15) + stream * 1.1;
+
+    for (let seg = 0; seg < 18; seg++) {
+      const a = headAngle - seg * 0.085;
+      const lx = Math.cos(a) * (rad + 0.08);
+      const ly = 0;
+      const lz = Math.sin(a) * (rad + 0.08);
+
+      const y1 = ly * cx - lz * sx;
+      const z1 = ly * sx + lz * cx;
+      const x2 = lx * cz - y1 * sz;
+      const y2 = lx * sz + y1 * cz;
+
+      const isHead = seg < 2;
+      const fade = 1 - seg / 18;
+      buf.push(
+        x2,
+        centerY + y2,
+        z1,
+        x2,
+        y2,
+        z1,
+        isHead ? 0.68 : 0.22 * fade,
+        isHead ? 1.0 : 0.85 * fade,
+        isHead ? 0.92 : 0.96 * fade,
+        isHead ? PART_KINDS.BEACON : PART_KINDS.CORE,
+        a,
+        isHead ? 1.0 : 0.72 * fade,
+      );
+    }
+  }
+
+  appendRadarHorizon(buf, timeSec, -1.04);
 }
 
-function evalTorusKnot(t, freq, amp, timeSec) {
-  const R = 0.74;
-  const r = 0.34 * (0.72 + 0.28 * amp);
-  const p = 3;
+/**
+ * Scene 02: 3D Cryptographic (2,5) Modular Cipher Torus (`cipher`).
+ */
+function populateCipherVolumetric(buf, timeSec) {
+  const p = 2;
   const q = 5;
-  const pulse = 1 + 0.08 * amp * Math.sin(t * 4 * freq - timeSec * 2.2);
-  const rad = (R + r * Math.cos(q * t + timeSec * 0.35)) * pulse;
-  const x = rad * Math.cos(p * t);
-  const z = rad * Math.sin(p * t);
-  const y = 0.14 + r * 1.15 * Math.sin(q * t + timeSec * 0.35);
-  return [x, y, z];
-}
+  const steps = 190;
+  const tubeSides = 12;
+  const majorR = 0.68;
+  const minorAmp = 0.25;
+  const tubeR = 0.095;
+  const phaseShift = timeSec * 0.42;
 
-function populateKnotVolumetric(buf, timeSec, { freq, amp }) {
-  const segs = 168;
-  const tubeSides = 16;
-  const tubeRadius = clamp(0.115 * (0.75 + 0.25 * amp), 0.06, 0.19);
-  const eps = 0.008;
+  for (let i = 0; i < steps; i++) {
+    const t = (i / steps) * TAU;
+    const r = majorR + minorAmp * Math.cos(q * t + phaseShift * 0.5);
+    const px = r * Math.cos(p * t);
+    const py = 0.08 + minorAmp * Math.sin(q * t + phaseShift * 0.5) * 1.35;
+    const pz = r * Math.sin(p * t);
 
-  for (let i = 0; i < segs; i++) {
-    const t = (i / segs) * TAU;
-    const [px, py, pz] = evalTorusKnot(t, freq, amp, timeSec);
-    const [nx1, ny1, nz1] = evalTorusKnot(t + eps, freq, amp, timeSec);
-
-    let tx = nx1 - px;
-    let ty = ny1 - py;
-    let tz = nz1 - pz;
+    const eps = 0.012;
+    const t2 = t + eps;
+    const r2 = majorR + minorAmp * Math.cos(q * t2 + phaseShift * 0.5);
+    let tx = r2 * Math.cos(p * t2) - px;
+    let ty = 0.08 + minorAmp * Math.sin(q * t2 + phaseShift * 0.5) * 1.35 - py;
+    let tz = r2 * Math.sin(p * t2) - pz;
     const tLen = Math.hypot(tx, ty, tz) || 1;
     tx /= tLen;
     ty /= tLen;
     tz /= tLen;
 
-    // Reference up vector avoiding gimbal singularity
-    const ux = Math.abs(ty) > 0.9 ? 1 : 0;
-    const uy = Math.abs(ty) > 0.9 ? 0 : 1;
-    const uz = 0;
+    let nx = -tz;
+    let ny = 0;
+    let nz = tx;
+    const nLen = Math.hypot(nx, ny, nz);
+    if (nLen < 1e-4) {
+      nx = 0;
+      ny = 1;
+      nz = 0;
+    } else {
+      nx /= nLen;
+      nz /= nLen;
+    }
+    const bx = ty * nz - tz * ny;
+    const by = tz * nx - tx * nz;
+    const bz = tx * ny - ty * nx;
 
-    let bx = ty * uz - tz * uy;
-    let by = tz * ux - tx * uz;
-    let bz = tx * uy - ty * ux;
-    const bLen = Math.hypot(bx, by, bz) || 1;
-    bx /= bLen;
-    by /= bLen;
-    bz /= bLen;
-
-    const nrmX = by * tz - bz * ty;
-    const nrmY = bz * tx - bx * tz;
-    const nrmZ = bx * ty - by * tx;
+    const [cr, cg, cb] = cyberColorRgb(i / steps + timeSec * 0.06);
 
     for (let j = 0; j < tubeSides; j++) {
-      const phi = (j / tubeSides) * TAU + t * 2;
-      const ca = Math.cos(phi);
-      const sa = Math.sin(phi);
-      const ox = ca * nrmX + sa * bx;
-      const oy = ca * nrmY + sa * by;
-      const oz = ca * nrmZ + sa * bz;
+      const phi = (j / tubeSides) * TAU + t * 2.0;
+      const cp = Math.cos(phi);
+      const sp = Math.sin(phi);
+      const vnx = cp * nx + sp * bx;
+      const vny = cp * ny + sp * by;
+      const vnz = cp * nz + sp * bz;
+      const isBeacon = i % 19 === 0 && j === 0;
 
-      const hue = i / segs + j * 0.015 + timeSec * 0.05;
-      const [cr, cg, cb] = spectralRgbUnit(hue);
-      const isBeacon = i % 14 === 0 && j % 8 === 0;
       buf.push(
-        px + ox * tubeRadius,
-        py + oy * tubeRadius,
-        pz + oz * tubeRadius,
-        ox,
-        oy,
-        oz,
-        cr,
-        cg,
-        cb,
+        px + vnx * tubeR,
+        py + vny * tubeR,
+        pz + vnz * tubeR,
+        vnx,
+        vny,
+        vnz,
+        isBeacon ? 0.58 : cr,
+        isBeacon ? 1.0 : cg,
+        isBeacon ? 0.88 : cb,
         isBeacon ? PART_KINDS.BEACON : PART_KINDS.SURFACE,
-        t * 2 + phi,
-        isBeacon ? 1.0 : 0.85,
+        t + phi,
+        isBeacon ? 1.0 : 0.84,
       );
     }
   }
 
-  appendGroundDisc(buf, timeSec, freq, 1.88);
-}
-
-function populateCoreVolumetric(buf, timeSec, { freq, amp }) {
-  // 1. Central Fibonacci Geodesic Luminous Core
-  const coreCount = 1150;
-  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
-  const coreRad = 0.42 * (0.76 + 0.24 * amp);
-  const centerY = 0.14;
-
-  for (let i = 0; i < coreCount; i++) {
-    const frac = 1 - (i / (coreCount - 1)) * 2;
-    const radial = Math.sqrt(Math.max(0, 1 - frac * frac));
-    const theta = goldenAngle * i + timeSec * 0.35;
-    const nx = Math.cos(theta) * radial;
-    const ny = frac;
-    const nz = Math.sin(theta) * radial;
-    const wave = 1 + 0.09 * Math.sin(ny * 7 * freq - timeSec * 3.1 + nx * 3);
-
-    const [cr, cg, cb] = spectralRgbUnit(0.45 + 0.35 * (ny * 0.5 + 0.5) + timeSec * 0.06);
-    const isBeacon = i % 37 === 0;
-    buf.push(
-      nx * coreRad * wave,
-      centerY + ny * coreRad * wave,
-      nz * coreRad * wave,
-      nx,
-      ny,
-      nz,
-      cr,
-      cg,
-      cb,
-      isBeacon ? PART_KINDS.BEACON : PART_KINDS.CORE,
-      i * 0.19,
-      isBeacon ? 1.0 : 0.78,
-    );
-  }
-
-  // 2. Three Precessing Tubular Gyroscope Gimbal Rings
-  const ringConfigs = [
-    { rad: 0.78, tiltX: 0.55 + timeSec * 0.42, tiltZ: 0.28, hueBase: 0.08 },
-    { rad: 0.96, tiltX: -0.68, tiltZ: 0.62 - timeSec * 0.36, hueBase: 0.52 },
-    { rad: 1.14, tiltX: 0.22 + timeSec * 0.25, tiltZ: -0.82, hueBase: 0.78 },
-  ];
-
-  for (let rIdx = 0; rIdx < ringConfigs.length; rIdx++) {
-    const cfg = ringConfigs[rIdx];
-    const majorR = cfg.rad * (0.82 + 0.18 * amp);
-    const minorR = 0.048;
-    const segs = 96;
-    const sides = 6;
-    const cxRot = Math.cos(cfg.tiltX);
-    const sxRot = Math.sin(cfg.tiltX);
-    const czRot = Math.cos(cfg.tiltZ);
-    const szRot = Math.sin(cfg.tiltZ);
-
-    for (let i = 0; i < segs; i++) {
-      const theta = (i / segs) * TAU;
-      const ct = Math.cos(theta);
-      const st = Math.sin(theta);
-
-      for (let j = 0; j < sides; j++) {
-        const phi = (j / sides) * TAU;
-        const cp = Math.cos(phi);
-        const sp = Math.sin(phi);
-        const localR = majorR + minorR * cp;
-        const lx = localR * ct;
-        const ly = minorR * sp;
-        const lz = localR * st;
-
-        // Rotate ring in 3D space
-        const y1 = ly * cxRot - lz * sxRot;
-        const z1 = ly * sxRot + lz * cxRot;
-        const x2 = lx * czRot - y1 * szRot;
-        const y2 = lx * szRot + y1 * czRot;
-
-        const n1y = sp * cxRot - st * cp * sxRot;
-        const n1z = sp * sxRot + st * cp * cxRot;
-        const nx = cp * ct * czRot - n1y * szRot;
-        const ny = cp * ct * szRot + n1y * czRot;
-        const nz = n1z;
-
-        const [cr, cg, cb] = spectralRgbUnit(cfg.hueBase + (i / segs) * 0.38);
-        const isBeacon = i % 16 === 0 && j === 0;
-        buf.push(
-          x2,
-          centerY + y2,
-          z1,
-          nx,
-          ny,
-          nz,
-          cr,
-          cg,
-          cb,
-          isBeacon ? PART_KINDS.BEACON : PART_KINDS.SURFACE,
-          theta + rIdx,
-          isBeacon ? 1.0 : 0.9,
-        );
-      }
-    }
-  }
-
-  appendGroundDisc(buf, timeSec, freq, 1.9);
+  appendRadarHorizon(buf, timeSec, -0.98);
 }
 
 /**
- * Samples deterministic volumetric 3D ASCII/Math point cloud for the selected manifold preset.
- * Reuses a pre-allocated TypedArray buffer cleanly for zero GC pressure during 60fps animation.
- *
+ * Scene 03: 3D Wireless / RF Radiation Field & Antenna Spine (`rf`).
+ */
+function populateRfVolumetric(buf, timeSec) {
+  const centerY = 0.04;
+
+  // 1. Central Vertical Antenna Dipole Mast + Pulsing Feed Beacon
+  for (let i = 0; i <= 26; i++) {
+    const y = -0.68 + (i / 26) * 1.48;
+    const isTip = i === 26 || i === 14;
+    buf.push(
+      0,
+      y,
+      0,
+      0,
+      0,
+      1,
+      isTip ? 0.6 : 0.25,
+      1.0,
+      isTip ? 0.92 : 0.72,
+      isTip ? PART_KINDS.BEACON : PART_KINDS.CORE,
+      i * 0.25,
+      isTip ? 1.0 : 0.88,
+    );
+  }
+
+  // 2. Concentric 3D RF Radiation Shells / Rippling Carrier Grid
+  const rows = 40;
+  const cols = 58;
+  const span = 1.42;
+
+  for (let r = 0; r < rows; r++) {
+    const u = (r / (rows - 1)) * 2 - 1;
+    const z = u * span;
+    for (let c = 0; c < cols; c++) {
+      const v = (c / (cols - 1)) * 2 - 1;
+      const x = v * span;
+      const rad = Math.hypot(x, z);
+      if (rad > 1.45) continue;
+
+      const angle = Math.atan2(z, x);
+      const y =
+        centerY +
+        0.34 * Math.sin(rad * 7.2 - timeSec * 2.8) * Math.exp(-rad * 0.72) +
+        0.12 * Math.cos(angle * 3 + timeSec * 1.4) * Math.sin(rad * 4.2);
+
+      // Analytical radial derivative approximation for crisp lighting
+      const dyDr = 2.4 * Math.cos(rad * 7.2 - timeSec * 2.8) * Math.exp(-rad * 0.72);
+      const invR = rad > 1e-4 ? 1 / rad : 0;
+      const dxSlope = dyDr * x * invR;
+      const dzSlope = dyDr * z * invR;
+      const nLen = Math.hypot(-dxSlope, 1, -dzSlope) || 1;
+
+      const isPeak = y > 0.24 && (r + c) % 7 === 0;
+      const [cr, cg, cb] = cyberColorRgb(rad * 0.55 - timeSec * 0.14);
+
+      buf.push(
+        x,
+        y,
+        z,
+        -dxSlope / nLen,
+        1 / nLen,
+        -dzSlope / nLen,
+        isPeak ? 0.58 : cr,
+        isPeak ? 1.0 : cg,
+        isPeak ? 0.9 : cb,
+        isPeak ? PART_KINDS.BEACON : PART_KINDS.SURFACE,
+        rad * 4,
+        isPeak ? 0.98 : 0.82,
+      );
+    }
+  }
+
+  appendRadarHorizon(buf, timeSec, -0.98);
+}
+
+/**
+ * Builds deterministic volumetric 3D Cybersecurity ASCII/Math scenes.
  * @param {string} presetId
  * @param {number} timeSec
- * @param {{ freq?: number, amp?: number }} [rawParams]
  */
-export function buildAsciiScene(presetId, timeSec = 0, rawParams = {}) {
-  const safeId = Object.prototype.hasOwnProperty.call(ASCII_SCENE_SPECS, presetId)
-    ? presetId
-    : 'wave';
+export function buildAsciiScene(presetId, timeSec = 0) {
+  const legacyAlias = { wave: 'mesh', spiro: 'cipher', tesseract: 'rf' };
+  const resolved = legacyAlias[presetId] || presetId;
+  const safeId = Object.prototype.hasOwnProperty.call(ASCII_SCENE_SPECS, resolved)
+    ? resolved
+    : 'mesh';
   const t = Number.isFinite(timeSec) ? timeSec : 0;
-  const params = normalizeArtParams(rawParams);
 
   SHARED_BUFFER.reset();
-  if (safeId === 'spiro') {
-    populateKnotVolumetric(SHARED_BUFFER, t, params);
-  } else if (safeId === 'tesseract') {
-    populateCoreVolumetric(SHARED_BUFFER, t, params);
+  if (safeId === 'cipher') {
+    populateCipherVolumetric(SHARED_BUFFER, t);
+  } else if (safeId === 'rf') {
+    populateRfVolumetric(SHARED_BUFFER, t);
   } else {
-    populateWaveVolumetric(SHARED_BUFFER, t, params);
+    populateMeshVolumetric(SHARED_BUFFER, t);
   }
 
   return {
@@ -407,37 +457,37 @@ export function buildAsciiScene(presetId, timeSec = 0, rawParams = {}) {
 }
 
 /**
- * Builds deterministic backdrop stars and floating cosmic motes directly in normalized [0,1] space.
+ * Builds sparse calm backdrop stars & minimal floating telemetry motes.
  */
 export function createSkyField(seed = 2026) {
   const rand = createRng(seed);
   const stars = [];
   const motes = [];
-  const starGlyphs = ['.', '·', '+', '*'];
-  const moteGlyphs = ['·', '×', '+', '∞', 'π'];
+  const starGlyphs = ['.', '·', '+'];
+  const moteGlyphs = ['·', '+', 'π'];
 
-  for (let i = 0; i < 160; i++) {
+  for (let i = 0; i < 85; i++) {
     stars.push({
       u: rand(),
-      v: 0.02 + rand() * 0.82,
+      v: 0.03 + rand() * 0.84,
       phase: rand() * TAU,
-      speed: 1.2 + rand() * 3.0,
+      speed: 0.9 + rand() * 1.8,
       glyph: starGlyphs[i % starGlyphs.length],
-      bright: 0.55 + rand() * 0.45,
+      bright: 0.35 + rand() * 0.45,
     });
   }
 
-  for (let i = 0; i < 65; i++) {
+  for (let i = 0; i < 24; i++) {
     motes.push({
       u0: rand(),
       v0: rand(),
-      vy: 0.025 + rand() * 0.055,
-      vx: -0.012 + rand() * 0.024,
-      swayAmp: 0.005 + rand() * 0.012,
+      vy: 0.015 + rand() * 0.03,
+      vx: -0.008 + rand() * 0.016,
+      swayAmp: 0.004 + rand() * 0.008,
       phase: rand() * TAU,
       glyph: moteGlyphs[i % moteGlyphs.length],
-      inFront: i % 3 === 0,
-      bright: 0.65 + rand() * 0.35,
+      inFront: i % 4 === 0,
+      bright: 0.45 + rand() * 0.35,
     });
   }
 
