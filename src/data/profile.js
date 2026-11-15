@@ -25,6 +25,54 @@ export function isSafeExternalUrl(rawUrl, options = {}) {
   }
 }
 
+export const PINNED_REPO_ORDER = Object.freeze([
+  'RLT8720dn-MULTI-ATTACK-TOOLS-FOR-WIFI-AND-BLUETOOTH',
+  'DRONE-COMPUTER-VISION-PROJECT',
+  'FU_IOT102_DroneBasedEnvironmentalMonitoring',
+  'FU_OSG203_UsingAIToMonitoringSystemCTL',
+  'FU_NWC202-PROJECT-HOTEL-NETWORK-SYSTEM-DESIGN',
+  'ASCII-CHRISTMAS',
+]);
+
+const CURATED_REPO_OVERRIDES = Object.freeze({
+  'RLT8720dn-MULTI-ATTACK-TOOLS-FOR-WIFI-AND-BLUETOOTH': Object.freeze({
+    language: 'C++',
+    homepage: null,
+    description:
+      'Dual-band (2.4GHz/5GHz) Wi-Fi & BLE security testing firmware for RTL8720DN (BW16) featuring spectrum scanning and audit workflows.',
+  }),
+  'DRONE-COMPUTER-VISION-PROJECT': Object.freeze({
+    language: 'Python',
+    homepage: null,
+    description:
+      'Real-time Search & Rescue vision on Raspberry Pi 5 + Hailo AI HAT+, fusing YOLOv8 NPU detection with MLX90640 thermal telemetry.',
+  }),
+  FU_IOT102_DroneBasedEnvironmentalMonitoring: Object.freeze({
+    language: 'JavaScript',
+    homepage: null,
+    description:
+      'UAV environmental telemetry & wireless payload platform integrating a Realtek BW16 node, MQTT messaging, and Web GCS dashboard.',
+  }),
+  FU_OSG203_UsingAIToMonitoringSystemCTL: Object.freeze({
+    language: 'HTML',
+    homepage: null,
+    description:
+      'Linux systemd (systemctl) service monitor on CentOS with auto-healing restarts, CPU/RAM/disk alerts, and Groq Llama 3.1 log triage.',
+  }),
+  'FU_NWC202-PROJECT-HOTEL-NETWORK-SYSTEM-DESIGN': Object.freeze({
+    language: 'Cisco PKT',
+    homepage: null,
+    description:
+      'Enterprise multi-floor hotel network architecture modeled in Cisco Packet Tracer (.pkt) with segmented VLANs and routing topology.',
+  }),
+  'ASCII-CHRISTMAS': Object.freeze({
+    language: 'JavaScript',
+    homepage: 'https://kh4nhtu0n9.github.io/ASCII-CHRISTMAS/',
+    description:
+      'Interactive 3D point-cloud ASCII projection scene built with vanilla ES Modules and Z-buffered Canvas 2D character lighting.',
+  }),
+});
+
 /**
  * Normalizes a GitHub REST API repository object into a UI card entry.
  * Returns null if the repo is invalid or fails URL safety checks.
@@ -43,21 +91,22 @@ export function normalizeRepoRecord(rawRepo, username = 'KH4NHTU0N9') {
     return null;
   }
 
+  const override = CURATED_REPO_OVERRIDES[name] || null;
   let homepage = null;
   if (typeof rawRepo.homepage === 'string' && isSafeExternalUrl(rawRepo.homepage)) {
     homepage = rawRepo.homepage.trim();
-  } else if (name === 'ASCII-CHRISTMAS') {
-    homepage = 'https://kh4nhtu0n9.github.io/ASCII-CHRISTMAS/';
+  } else if (override?.homepage && isSafeExternalUrl(override.homepage)) {
+    homepage = override.homepage;
   }
 
   const language =
     typeof rawRepo.language === 'string' && rawRepo.language.trim()
       ? rawRepo.language.trim()
-      : 'Code';
+      : override?.language || 'Code';
   const description =
     typeof rawRepo.description === 'string' && rawRepo.description.trim()
       ? rawRepo.description.trim()
-      : null;
+      : override?.description || null;
   const stars = Number.isFinite(rawRepo.stargazers_count)
     ? rawRepo.stargazers_count
     : Number.isFinite(rawRepo.stars)
@@ -80,21 +129,44 @@ export const LANGUAGE_COLORS = Object.freeze({
   TypeScript: '#3178c6',
   Python: '#3572a5',
   'C++': '#f34b7d',
-  Java: '#b07219',
+  'Cisco PKT': '#38bdf8',
   HTML: '#e34c26',
-  Code: '#22d3ee',
+  Code: '#34d399',
+});
+
+export const TOOL_APPLICATIONS = Object.freeze({
+  Linux: 'Host & Kernel Ops',
+  'Kali Linux': 'Pentest & Audit Env',
+  Wireshark: 'Packet Analysis',
+  Binwalk: 'Firmware Extraction',
+  'The Sleuth Kit': 'Disk Forensics',
+  CyberChef: 'Encoding & Decode',
+  ExifTool: 'Metadata Triage',
+  Cisco: 'VLAN & Routing',
+  'Embedded C': 'Bare-Metal MCU',
+  C: 'Systems & Memory',
+  'C++': 'Low-Level Tooling',
+  RTL8720DN: '2.4/5GHz Wi-Fi & BLE',
+  ESP32: 'IoT & Telemetry',
+  Betaflight: 'UAV Flight Stack',
+  'PX4 Autopilot': 'Autopilot Control',
+  Python: 'DFIR & CV Scripts',
+  TypeScript: 'Web & API Tooling',
+  'GNU Bash': 'Shell Automation',
+  Docker: 'Isolated Containers',
+  PostgreSQL: 'Relational Data',
 });
 
 export const PROFILE_DATA = Object.freeze({
   login: 'KH4NHTU0N9',
   displayName: 'trankhanhtuong',
   pronouns: 'he/him',
-  tagline: 'Embedded · Security · Systems Developer',
-  bio: "i'm fascinating in coding some tools which can help world look supercalifragilisticexpialidocious",
+  tagline: 'Information Security & Embedded Systems Student',
+  bio: 'Information Security & Embedded Systems student passionate about building low-level tools, network analysis utilities, and resilient software.',
   avatarUrl: 'https://avatars.githubusercontent.com/u/121629080?v=4',
   githubUrl: 'https://github.com/KH4NHTU0N9',
   stats: Object.freeze({
-    publicRepos: 23,
+    publicRepos: 24,
     followers: 1,
     following: 0,
   }),
@@ -132,128 +204,157 @@ export const PROFILE_DATA = Object.freeze({
   ]),
   techDomains: Object.freeze([
     Object.freeze({
-      id: 'embedded',
-      label: 'Embedded & Flight',
-      subtitle: 'Microcontrollers, UAV autopilots & robotics tooling',
-      items: Object.freeze([
-        'C',
-        'C++',
-        'Embedded C',
-        'Arduino IDE',
-        'ESP32',
-        'PlatformIO',
-        'Cirkit Designer',
-        'Betaflight',
-        'PX4 Autopilot',
-        'ROS',
-      ]),
-    }),
-    Object.freeze({
       id: 'security',
-      label: 'Security & Forensics',
-      subtitle: 'Network traffic, binary analysis & forensic workflows',
+      label: 'Security & DFIR',
+      focusTier: 'CORE TRACK · TRIAGE',
+      subtitle: 'Packet inspection, firmware analysis & forensic workflows',
       items: Object.freeze([
         'Linux',
         'Kali Linux',
-        'Cisco',
         'Wireshark',
-        'The Sleuth Kit',
         'Binwalk',
-        'ExifTool',
+        'The Sleuth Kit',
         'CyberChef',
-        'Steghide',
-        'Zsteg',
-        'Audacity',
+        'ExifTool',
+        'Cisco',
+      ]),
+    }),
+    Object.freeze({
+      id: 'embedded',
+      label: 'Embedded, RF & UAV',
+      focusTier: 'HARDWARE · FIRMWARE',
+      subtitle: 'Dual-band wireless MCU tooling & autonomous flight control',
+      items: Object.freeze([
+        'Embedded C',
+        'C',
+        'C++',
+        'RTL8720DN',
+        'ESP32',
+        'Betaflight',
+        'PX4 Autopilot',
       ]),
     }),
     Object.freeze({
       id: 'systems',
-      label: 'Systems, Data & Cloud',
-      subtitle: 'Backend tooling, databases & runtime deployment',
+      label: 'Systems & Automation',
+      focusTier: 'RUNTIME · INFRA',
+      subtitle: 'Monitoring agents, scripting & containerized deployment',
       items: Object.freeze([
         'Python',
         'TypeScript',
-        'Prisma',
-        'PostgreSQL',
-        'MySQL',
-        'SQLite',
-        'Docker',
-        'Vercel',
-        'Google Cloud',
-        'Cloudflare',
-        'Git',
-        'GitHub',
-        'FFmpeg',
         'GNU Bash',
-        'Windows Terminal',
-        'VS Code',
-        'Notion',
-        'Adobe',
+        'Docker',
+        'PostgreSQL',
       ]),
+    }),
+  ]),
+  technicalLog: Object.freeze([
+    Object.freeze({
+      id: 'LOG_01',
+      tag: 'RF / WIRELESS',
+      scope: 'C++ · RTL8720DN (BW16)',
+      title: 'Dual-Band 2.4/5GHz Wi-Fi & BLE Audit Firmware',
+      summary:
+        'Built multi-mode scanning and wireless test routines for Realtek RTL8720DN (BW16) with dedicated SECURITY_AUDIT documentation.',
+    }),
+    Object.freeze({
+      id: 'LOG_02',
+      tag: 'LINUX / OPS',
+      scope: 'CentOS · systemd · AI Triage',
+      title: 'Auto-Healing Systemd Service & Log Monitor',
+      summary:
+        'Engineered automated recovery for httpd, sshd, crond, mariadb, and nginx with CPU/RAM telemetry and LLM root-cause diagnostics.',
+    }),
+    Object.freeze({
+      id: 'LOG_03',
+      tag: 'UAV / VISION',
+      scope: 'RPi 5 · Hailo NPU · MLX90640',
+      title: 'Thermal-RGB SAR Detection & MQTT UAV Payload',
+      summary:
+        'Fused hardware-accelerated YOLOv8 inference with thermal sensor readings and live MJPEG stream over dual BW16 IoT telemetry.',
+    }),
+    Object.freeze({
+      id: 'LOG_04',
+      tag: 'NET / TOPOLOGY',
+      scope: 'Cisco Packet Tracer · NWC204',
+      title: 'Segmented Enterprise Hotel Network Design',
+      summary:
+        'Designed multi-floor campus/hotel VLAN segmentation, routing policies, and service availability inside Cisco Packet Tracer.',
+    }),
+    Object.freeze({
+      id: 'LOG_05',
+      tag: 'CTF / CERTS',
+      scope: 'Verified Slot · Open',
+      title: 'CTF Competitions, Research & Certifications Log',
+      summary:
+        'Structured slot reserved for upcoming CTF write-ups, student research milestones, and formal cybersecurity certifications.',
     }),
   ]),
   fallbackRepos: Object.freeze([
     Object.freeze({
-      name: 'ASCII-CHRISTMAS',
-      htmlUrl: 'https://github.com/KH4NHTU0N9/ASCII-CHRISTMAS',
-      homepage: 'https://kh4nhtu0n9.github.io/ASCII-CHRISTMAS/',
-      language: 'JavaScript',
-      description: 'Interactive 3D ASCII projection scene hosted on GitHub Pages.',
+      name: 'RLT8720dn-MULTI-ATTACK-TOOLS-FOR-WIFI-AND-BLUETOOTH',
+      htmlUrl: 'https://github.com/KH4NHTU0N9/RLT8720dn-MULTI-ATTACK-TOOLS-FOR-WIFI-AND-BLUETOOTH',
+      homepage: null,
+      language: 'C++',
+      description:
+        CURATED_REPO_OVERRIDES['RLT8720dn-MULTI-ATTACK-TOOLS-FOR-WIFI-AND-BLUETOOTH'].description,
       stars: 1,
-      updatedAt: '2026-11-14T03:18:11Z',
+      updatedAt: '2026-07-27T08:25:10Z',
     }),
     Object.freeze({
       name: 'DRONE-COMPUTER-VISION-PROJECT',
       htmlUrl: 'https://github.com/KH4NHTU0N9/DRONE-COMPUTER-VISION-PROJECT',
       homepage: null,
       language: 'Python',
-      description: null,
+      description: CURATED_REPO_OVERRIDES['DRONE-COMPUTER-VISION-PROJECT'].description,
       stars: 1,
       updatedAt: '2026-10-31T01:59:22Z',
     }),
     Object.freeze({
-      name: 'RLT8720dn-MULTI-ATTACK-TOOLS-FOR-WIFI-AND-BLUETOOTH',
-      htmlUrl: 'https://github.com/KH4NHTU0N9/RLT8720dn-MULTI-ATTACK-TOOLS-FOR-WIFI-AND-BLUETOOTH',
+      name: 'FU_IOT102_DroneBasedEnvironmentalMonitoring',
+      htmlUrl: 'https://github.com/KH4NHTU0N9/FU_IOT102_DroneBasedEnvironmentalMonitoring',
       homepage: null,
-      language: 'C++',
-      description: null,
-      stars: 1,
-      updatedAt: '2026-07-27T08:25:10Z',
-    }),
-    Object.freeze({
-      name: 'JPD113-REVISION-PROJECT',
-      htmlUrl: 'https://github.com/KH4NHTU0N9/JPD113-REVISION-PROJECT',
-      homepage: 'https://jpd113-revision-project.vercel.app',
-      language: 'TypeScript',
-      description: null,
-      stars: 1,
-      updatedAt: '2026-11-13T16:18:16Z',
-    }),
-    Object.freeze({
-      name: 'Hospital-Multi-Counter-Queue-Balancer-System',
-      htmlUrl: 'https://github.com/KH4NHTU0N9/Hospital-Multi-Counter-Queue-Balancer-System',
-      homepage: null,
-      language: 'Python',
-      description: null,
-      stars: 1,
-      updatedAt: '2026-10-31T02:00:09Z',
-    }),
-    Object.freeze({
-      name: 'POS_MANAGEMENT',
-      htmlUrl: 'https://github.com/KH4NHTU0N9/POS_MANAGEMENT',
-      homepage: null,
-      language: 'TypeScript',
+      language: 'JavaScript',
       description:
-        'POS_MANAGEMENT can help owner manage their restaurant which like ordering, managing transaction, exporting restaurant data,....',
+        CURATED_REPO_OVERRIDES.FU_IOT102_DroneBasedEnvironmentalMonitoring.description,
       stars: 1,
-      updatedAt: '2026-04-28T19:04:33Z',
+      updatedAt: '2026-09-12T00:00:00Z',
+    }),
+    Object.freeze({
+      name: 'FU_OSG203_UsingAIToMonitoringSystemCTL',
+      htmlUrl: 'https://github.com/KH4NHTU0N9/FU_OSG203_UsingAIToMonitoringSystemCTL',
+      homepage: null,
+      language: 'HTML',
+      description: CURATED_REPO_OVERRIDES.FU_OSG203_UsingAIToMonitoringSystemCTL.description,
+      stars: 1,
+      updatedAt: '2026-09-01T00:00:00Z',
+    }),
+    Object.freeze({
+      name: 'FU_NWC202-PROJECT-HOTEL-NETWORK-SYSTEM-DESIGN',
+      htmlUrl: 'https://github.com/KH4NHTU0N9/FU_NWC202-PROJECT-HOTEL-NETWORK-SYSTEM-DESIGN',
+      homepage: null,
+      language: 'Cisco PKT',
+      description:
+        CURATED_REPO_OVERRIDES['FU_NWC202-PROJECT-HOTEL-NETWORK-SYSTEM-DESIGN'].description,
+      stars: 1,
+      updatedAt: '2026-08-15T00:00:00Z',
+    }),
+    Object.freeze({
+      name: 'ASCII-CHRISTMAS',
+      htmlUrl: 'https://github.com/KH4NHTU0N9/ASCII-CHRISTMAS',
+      homepage: 'https://kh4nhtu0n9.github.io/ASCII-CHRISTMAS/',
+      language: 'JavaScript',
+      description: CURATED_REPO_OVERRIDES['ASCII-CHRISTMAS'].description,
+      stars: 1,
+      updatedAt: '2026-11-14T03:18:11Z',
     }),
   ]),
 });
 
 /**
- * Fetches live non-fork public repositories from the GitHub REST API,
- * falling back cleanly to verified offline metadata if network/rate-limits fail.
+ * Fetches live non-fork public repositories from the GitHub REST API, filters strictly
+ * to the curated portfolio pin allowlist so unrelated coursework or sensitive tools are
+ * excluded, and orders them cleanly with verified descriptions.
  *
  * @param {string} [username]
  * @param {{ fetchImpl?: typeof fetch, limit?: number }} [options]
@@ -268,7 +369,7 @@ export async function fetchPublicReposWithFallback(username = PROFILE_DATA.login
     return { repos: fallback, source: 'fallback' };
   }
 
-  const endpoint = `https://api.github.com/users/${encodeURIComponent(username)}/repos?per_page=40&sort=updated`;
+  const endpoint = `https://api.github.com/users/${encodeURIComponent(username)}/repos?per_page=100&sort=updated`;
   const controller = typeof AbortController === 'function' ? new AbortController() : null;
   const timer = controller ? setTimeout(() => controller.abort(), 3500) : null;
   try {
@@ -285,30 +386,27 @@ export async function fetchPublicReposWithFallback(username = PROFILE_DATA.login
       return { repos: fallback, source: 'fallback' };
     }
 
+    const pinRank = new Map(PINNED_REPO_ORDER.map((name, idx) => [name, idx]));
     const pagesRepoName = `${username.toLowerCase()}.github.io`;
-    const curated = [];
+    const matched = [];
+
     for (const item of payload) {
       if (item && item.fork) {
         continue;
       }
       const norm = normalizeRepoRecord(item, username);
-      if (!norm || norm.name.toLowerCase() === pagesRepoName) {
+      if (!norm || norm.name.toLowerCase() === pagesRepoName || !pinRank.has(norm.name)) {
         continue;
       }
-      // Preserve known verified summary for ASCII-CHRISTMAS when upstream description is null.
-      if (norm.name === 'ASCII-CHRISTMAS' && !norm.description) {
-        norm.description = 'Interactive 3D ASCII projection scene hosted on GitHub Pages.';
-      }
-      curated.push(norm);
-      if (curated.length >= limit) {
-        break;
-      }
+      matched.push(norm);
     }
 
-    if (curated.length === 0) {
+    matched.sort((a, b) => (pinRank.get(a.name) ?? 999) - (pinRank.get(b.name) ?? 999));
+
+    if (matched.length === 0) {
       return { repos: fallback, source: 'fallback' };
     }
-    return { repos: curated, source: 'live' };
+    return { repos: matched.slice(0, limit), source: 'live' };
   } catch {
     return { repos: fallback, source: 'fallback' };
   } finally {

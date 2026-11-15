@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  PINNED_REPO_ORDER,
   PROFILE_DATA,
+  TOOL_APPLICATIONS,
   fetchPublicReposWithFallback,
   isSafeExternalUrl,
   normalizeRepoRecord,
@@ -17,17 +19,27 @@ test('isSafeExternalUrl strictly enforces https and optional mailto allowlist', 
   assert.equal(isSafeExternalUrl('mailto:invalid-email', { allowMailto: true }), false);
 });
 
-test('all embedded PROFILE_DATA links pass strict URL safety validation', () => {
+test('all embedded PROFILE_DATA links, curated tools, and descriptions pass validation', () => {
   assert.equal(isSafeExternalUrl(PROFILE_DATA.avatarUrl), true);
   assert.equal(isSafeExternalUrl(PROFILE_DATA.githubUrl), true);
 
   for (const s of PROFILE_DATA.socials) {
     assert.equal(isSafeExternalUrl(s.url, { allowMailto: s.allowMailto }), true, s.label);
   }
+  assert.equal(PROFILE_DATA.fallbackRepos.length, PINNED_REPO_ORDER.length);
   for (const repo of PROFILE_DATA.fallbackRepos) {
     assert.equal(isSafeExternalUrl(repo.htmlUrl), true, repo.name);
+    assert.ok(repo.description && repo.description.length > 20, `${repo.name} must have verified description`);
     if (repo.homepage !== null) {
       assert.equal(isSafeExternalUrl(repo.homepage), true, `${repo.name} homepage`);
+    }
+  }
+
+  const totalCuratedTools = PROFILE_DATA.techDomains.reduce((sum, dom) => sum + dom.items.length, 0);
+  assert.ok(totalCuratedTools >= 15 && totalCuratedTools <= 22, `curated tool count ${totalCuratedTools} out of [15, 22]`);
+  for (const dom of PROFILE_DATA.techDomains) {
+    for (const item of dom.items) {
+      assert.ok(TOOL_APPLICATIONS[item], `missing TOOL_APPLICATIONS role for ${item}`);
     }
   }
 });
@@ -61,7 +73,7 @@ test('normalizeRepoRecord filters profile README repo and rejects unsafe URLs', 
   });
 });
 
-test('fetchPublicReposWithFallback returns verified fallback when network fails and filters forks live', async () => {
+test('fetchPublicReposWithFallback returns curated fallback offline and pins/orders security & engineering repos live', async () => {
   const failingResult = await fetchPublicReposWithFallback('KH4NHTU0N9', {
     fetchImpl: async () => {
       throw new Error('offline');
@@ -71,12 +83,22 @@ test('fetchPublicReposWithFallback returns verified fallback when network fails 
   assert.equal(failingResult.repos.length, 6);
 
   const liveResult = await fetchPublicReposWithFallback('KH4NHTU0N9', {
-    limit: 2,
+    limit: 3,
     fetchImpl: async () => ({
       ok: true,
       json: async () => [
         { name: 'FORKED', fork: true, html_url: 'https://github.com/KH4NHTU0N9/FORKED' },
         { name: 'KH4NHTU0N9', fork: false, html_url: 'https://github.com/KH4NHTU0N9/KH4NHTU0N9' },
+        {
+          name: 'CHEAT-DECOMPOSITION-AOV',
+          fork: false,
+          html_url: 'https://github.com/KH4NHTU0N9/CHEAT-DECOMPOSITION-AOV',
+        },
+        {
+          name: 'SHADOW-ROCKET-CONFIG-URL',
+          fork: false,
+          html_url: 'https://github.com/KH4NHTU0N9/SHADOW-ROCKET-CONFIG-URL',
+        },
         {
           name: 'ASCII-CHRISTMAS',
           fork: false,
@@ -89,13 +111,28 @@ test('fetchPublicReposWithFallback returns verified fallback when network fails 
           fork: false,
           html_url: 'https://github.com/KH4NHTU0N9/DRONE-COMPUTER-VISION-PROJECT',
           language: 'Python',
-          stargazers_count: 1,
+          stargazers_count: 2,
+        },
+        {
+          name: 'RLT8720dn-MULTI-ATTACK-TOOLS-FOR-WIFI-AND-BLUETOOTH',
+          fork: false,
+          html_url: 'https://github.com/KH4NHTU0N9/RLT8720dn-MULTI-ATTACK-TOOLS-FOR-WIFI-AND-BLUETOOTH',
+          language: 'C++',
+          stargazers_count: 4,
         },
       ],
     }),
   });
   assert.equal(liveResult.source, 'live');
-  assert.equal(liveResult.repos.length, 2);
-  assert.equal(liveResult.repos[0].name, 'ASCII-CHRISTMAS');
-  assert.equal(liveResult.repos[1].name, 'DRONE-COMPUTER-VISION-PROJECT');
+  assert.equal(liveResult.repos.length, 3);
+  assert.deepEqual(
+    liveResult.repos.map((r) => r.name),
+    [
+      'RLT8720dn-MULTI-ATTACK-TOOLS-FOR-WIFI-AND-BLUETOOTH',
+      'DRONE-COMPUTER-VISION-PROJECT',
+      'ASCII-CHRISTMAS',
+    ],
+  );
+  assert.ok(liveResult.repos[0].description.includes('RTL8720DN'));
+  assert.equal(liveResult.repos[0].stars, 4);
 });
